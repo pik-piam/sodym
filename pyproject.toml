@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "sodym"
+version = "0.1.0"
+description = ""
+authors = ["Jakob Dürrwächter, Merlin Hosak, Stefan Pauliuk"]
+readme = "README.md"
+packages = [{include = "sodym"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+matplotlib = "^3.7.1"
+numpy = "^1.25.0"
+scipy = "^1.11.0"
+PyYAML = "^6.0"
+pandas = "^2.0.2"
+pickle4 = "^0.0.1"
+plotly = "^5.18.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
