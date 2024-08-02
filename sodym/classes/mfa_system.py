@@ -11,6 +11,8 @@ Re-written for use in simson project
 
 import numpy as np
 from abc import ABC, abstractmethod
+from pydantic import BaseModel
+from typing import List, Optional
 from .named_dim_arrays import Flow, Parameter, Process, NamedDimArray
 from .stocks_in_mfa import Stock, StockWithDSM
 from .dimensions import Dimension, DimensionSet
@@ -42,23 +44,18 @@ class MFASystem(ABC):
         self.initialize_scalar_parameters()
 
     @abstractmethod
-    def fill_definition(self):
-        pass
-
-    @abstractmethod
     def compute(self):
         """
         Perform all computations for the MFA system.
         """
         pass
 
+    @abstractmethod
     def set_up_definition(self):
         """
         Wrapper for the fill_definition routine defined in the subclass
         """
         self.definition = MFADefinition()
-        self.fill_definition()
-        self.definition.check_complete()
 
     def set_up_dimensions(self):
         """
@@ -222,24 +219,14 @@ class MFASystem(ABC):
         return {}
 
 
-class MFADefinition():
+class MFADefinition(BaseModel):
     """
     Empty container for all information needed to define an MFA system, in the form of lists and dictionaries.
     Is filled by the fill_definition routine in the subclass of MFASystem, which defines the system layout.
     """
-
-    def __init__(self):
-        self.dimensions = None
-        self.processes = None
-        self.flows = None
-        self.stocks = None
-        self.parameters = None
-        self.scalar_parameters = None
-
-    def check_complete(self):
-        assert self.dimensions is not None
-        assert self.processes is not None
-        assert self.flows is not None
-        assert self.stocks is not None
-        assert self.parameters is not None
-        assert self.scalar_parameters is not None
+    dimensions: List[dict]
+    processes: List[str]
+    flows: List[dict]
+    stocks: List[dict]
+    parameters: List[dict]
+    scalar_parameters: Optional[list] = []
