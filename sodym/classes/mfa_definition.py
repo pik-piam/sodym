@@ -14,7 +14,6 @@ class SomethingWithDimensions(BaseModel):
 
     @field_validator("dim_letters", mode='before')
     def check_dimensions(cls, v):
-        print('checking dimensions')
         for letter in v:
             if (not isinstance(letter, str)) or (len(letter) != 1):
                 raise ValueError('flows must be defined using single digit dimension letters')
