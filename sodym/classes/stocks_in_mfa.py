@@ -14,6 +14,7 @@ import numpy as np
 from .dynamic_stock_model import DynamicStockModel
 from .named_dim_arrays import StockArray, Parameter
 from .dimensions import DimensionSet
+from .mfa_definition import StockDefinition
 
 
 class Stock:
@@ -25,10 +26,10 @@ class Stock:
     The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both inflow and outflow are known.
     """
 
-    def __init__(self, name=None, process=None, dim_letters=None, parent_alldims: DimensionSet=None):
-        self.name = name
-        self._process_name = process
-        self.dim_letters = dim_letters
+    def __init__(self, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
+        self.name = stock_definition.name
+        self._process_name = stock_definition.process
+        self.dim_letters = stock_definition.dim_letters
 
         self.dims = None
         self.process = None
@@ -71,8 +72,8 @@ class StockWithDSM(Stock):
     the DynamicStockModel class, which contains the number crunching and takes numpy arrays as input.
     """
 
-    def __init__(self, name=None, process=None, dim_letters=None, parent_alldims: DimensionSet=None):
-        super().__init__(name, process, dim_letters, parent_alldims)
+    def __init__(self, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
+        super().__init__(stock_definition, parent_alldims)
         self.dsm = None
         self.ldf_type = None
         self.lifetime_mean = None
