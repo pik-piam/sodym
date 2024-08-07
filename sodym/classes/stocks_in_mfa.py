@@ -9,15 +9,16 @@ https://github.com/IndEcol/ODYM
 Re-written for use in simson project
 """
 
-import warnings
 import numpy as np
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict
+from typing import Optional
 from .dynamic_stock_model import DynamicStockModel
-from .named_dim_arrays import StockArray, Parameter
+from .named_dim_arrays import StockArray, Parameter, Process
 from .dimensions import DimensionSet
 from .mfa_definition import StockDefinition
 
 
-class Stock:
+class Stock(PydanticBaseModel):
     """
     Stock objects are components of an MFASystem, where materials can accumulate over time.
     They consist of three NamedDimArrays: stock (the accumulation), inflow, outflow.
@@ -25,42 +26,32 @@ class Stock:
     The base class only allows to compute the stock from known inflow and outflow.
     The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both inflow and outflow are known.
     """
+    stock: StockArray
+    inflow: StockArray
+    outflow: StockArray
+    name: str
+    process_name: str
+    process: Optional[Process] = None
 
-    def __init__(self, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
-        self.name = stock_definition.name
-        self._process_name = stock_definition.process
-        self.dim_letters = stock_definition.dim_letters
-
-        self.dims = None
-        self.process = None
-
-        self.stock = None
-        self.inflow = None
-        self.outflow = None
-
-        if parent_alldims is not None:
-            self.init_dimensions(parent_alldims)
-            self.init_arrays()
-        return
-
-    def init_dimensions(self, parent_alldims: DimensionSet):
-        self.dims = parent_alldims.get_subset(self.dim_letters)
-        if self.dims.names[0] not in ['time', 'Time', 'years', 'Years']:
-            warnings.warn(f"The DynamicStockModel class expects time as the first dimension. The name of the first dimension ({self.dims[0].name}) is not recognized as such. Please be sure that it is.")
-
-    def init_arrays(self):
-        assert self.dims is not None, "Dimensions must be initialized before arrays"
-        self.stock = StockArray(f"{self.name}_stock", self.dim_letters, parent_alldims=self.dims)
-        self.inflow = StockArray(f"{self.name}_inflow", self.dim_letters, parent_alldims=self.dims)
-        self.outflow = StockArray(f"{self.name}_outflow", self.dim_letters, parent_alldims=self.dims)
+    @classmethod
+    def from_definition(cls, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
+        dims = parent_alldims.get_subset(stock_definition.dim_letters)
+        name = stock_definition.name
+        stock = StockArray(dims=dims, name=f"{name}_stock")
+        inflow = StockArray(dims=dims, name=f"{name}_inflow")
+        outflow = StockArray(dims=dims, name=f"{name}_outflow")
+        return cls(name=name, stock=stock, inflow=inflow, outflow=outflow, process_name=stock_definition.process_name)
 
     def attach_to_process(self, processes: dict):
-        assert self._process_name is not None, "Process name must be set before attaching"
-        self.process = processes[self._process_name]
-        self.process_id = self.process.id
+        assert self.process_name is not None, "Process name must be set before attaching"
+        self.process = processes[self.process_name]
+
+    @property
+    def process_id(self):
+        return self.process.id
 
     def compute_stock(self):
-        self.stock.values[...] = np.cumsum(self.inflow.values - self.outflow.values, axis=self.dims.index('t'))
+        self.stock.values[...] = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index('t'))
 
 
 class StockWithDSM(Stock):
@@ -71,27 +62,28 @@ class StockWithDSM(Stock):
     with
     the DynamicStockModel class, which contains the number crunching and takes numpy arrays as input.
     """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __init__(self, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
-        super().__init__(stock_definition, parent_alldims)
-        self.dsm = None
-        self.ldf_type = None
-        self.lifetime_mean = None
-        self.lifetime_std = None
-        return
+    dsm: Optional[DynamicStockModel] = None
+    ldf_type: Optional[str] = None
+    lifetime_mean: Optional[StockArray] = None
+    lifetime_std: Optional[StockArray] = None
 
     def set_lifetime(self, ldf_type, lifetime_mean: Parameter, lifetime_std: Parameter):
-        assert self.dims is not None, "Dimensions must be initialized before arrays"
         self.ldf_type = ldf_type
-        self.lifetime_mean = StockArray(f"{self.name}_lifetime_mean", self.dim_letters, parent_alldims=self.dims)
-        self.lifetime_std = StockArray(f"{self.name}_lifetime_std", self.dim_letters, parent_alldims=self.dims)
-        self.lifetime_mean.values[...] = lifetime_mean.cast_values_to(self.dims)
-        self.lifetime_std.values[...]  = lifetime_std.cast_values_to(self.dims)
+        lifetime_mean_values = lifetime_mean.cast_values_to(self.stock.dims)
+        self.lifetime_mean = StockArray(
+            name=f"{self.name}_lifetime_mean", dims=self.stock.dims, values=lifetime_mean_values
+        )
+        lifetime_std_values = lifetime_std.cast_values_to(self.stock.dims)
+        self.lifetime_std = StockArray(
+            name=f"{self.name}_lifetime_std", dims=self.stock.dims, values=lifetime_std_values
+        )
 
     def compute_inflow_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.inflow is not None, "inflow not yet set"
-        self.dsm = DynamicStockModel(shape=self.dims.shape(),
+        self.dsm = DynamicStockModel(shape=self.stock.dims.shape(),
                                      inflow=self.inflow.values,
                                      ldf_type=self.ldf_type,
                                      lifetime_mean=self.lifetime_mean.values,
@@ -103,7 +95,7 @@ class StockWithDSM(Stock):
     def compute_stock_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.stock is not None, "stock arry not yet set"
-        self.dsm = DynamicStockModel(shape=self.dims.shape(),
+        self.dsm = DynamicStockModel(shape=self.stock.dims.shape(),
                                      stock=self.stock.values,
                                      ldf_type=self.ldf_type,
                                      lifetime_mean=self.lifetime_mean.values,

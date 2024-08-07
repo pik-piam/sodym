@@ -11,11 +11,11 @@ Re-written for use in simson project
 
 import numpy as np
 from abc import ABC, abstractmethod
-from .mfa_definition import MFADefinition, StockDefinition
+from .mfa_definition import MFADefinition, StockDefinition, DimensionDefinition
 from .named_dim_arrays import Flow, Parameter, Process, NamedDimArray
 from .stocks_in_mfa import Stock, StockWithDSM
 from .dimensions import Dimension, DimensionSet
-from ..tools.read_data import read_scalar_data
+from ..tools.read_data import read_scalar_data, read_data_to_df, get_np_from_df
 
 
 class MFASystem(ABC):
@@ -63,8 +63,7 @@ class MFASystem(ABC):
         this function loads a DimensionSet object, which includes loading of the items along each dimension.
         The mandatory Time dimension gets additional special treatment, to handle past and future.
         """
-        dim_constructor_args = [dict(d) | {'do_load': True} for d in self.definition.dimensions]
-        self.dims = DimensionSet(arg_dicts_for_dim_constructors=dim_constructor_args)
+        self.dims = DimensionSet.from_files(arg_dicts_for_dim_constructors=self.definition.dimensions)
         self.set_up_years()
 
     def set_up_years(self):
@@ -73,53 +72,61 @@ class MFASystem(ABC):
         Get indices for all historic and future years for array slicing.
         """
         self.years = self.dims._dict['Time']
-        self.historic_years = Dimension(name='historic_years')
-        self.historic_years.load_items(dtype=int)
-        self.future_years = Dimension(name='future_years')
-        self.future_years.set_items([y for y in self.dims['Time'].items if y not in self.historic_years.items])
+        self.historic_years = Dimension.from_file(DimensionDefinition(
+            name='historic_years', dim_letter='h', filename='historic_years', dtype=int
+        ))
+        future_years = [y for y in self.dims['Time'].items if y not in self.historic_years.items]
+        self.future_years = Dimension(name='future_years', dim_letter='f', items=future_years)
         self.i_historic = np.arange(self.historic_years.len)
         self.i_future = np.arange(self.historic_years.len, self.dims['Time'].len)
 
     def initialize_processes(self):
         """Convert the process definition list to dict of Process objects, indexed by name."""
-        self.processes = {name: Process(name, id) for id, name in enumerate(self.definition.processes)}
+        self.processes = {
+            name: Process(name=name, id=id) for id, name in enumerate(self.definition.processes)
+        }
 
     def initialize_flows(self):
         """
         Convert the flow definition list to dict of Process objects initialized with value 0., indexed by name.
         Flow names are deducted from the processes they connect.
         """
-        flow_list = [Flow(flow_definition) for flow_definition in self.definition.flows]
+        flow_list = [
+            Flow.from_definition_and_parent_alldims(
+                flow_definition, self.dims) for flow_definition in self.definition.flows
+        ]
         self.flows = {f.name: f for f in flow_list}
         for f in self.flows.values():
-            f.init_dimensions(self.dims)
             f.attach_to_processes(self.processes)
 
     def initialize_stocks(self):
-        self.stocks = {sd.name: Stock(sd) for sd in self.definition.stocks}
+        self.stocks = {sd.name: Stock.from_definition(sd, self.dims) for sd in self.definition.stocks}
         for s in self.stocks.values():
-            s.init_dimensions(self.dims)
-            s.init_arrays()
             s.attach_to_process(self.processes)
 
     def initialize_parameters(self):
-        self.parameters = {prd.name: Parameter(prd) for prd in self.definition.parameters}
-        for p in self.parameters.values():
-            p.init_dimensions(self.dims)
-            p.load_values()
+        self.parameters = {}
+        for parameter in self.definition.parameters:
+            dims = self.dims.get_subset(parameter.dim_letters)
+            data = read_data_to_df(type='dataset', name=parameter.name)
+            values = get_np_from_df(data, dims.names)
+            self.parameters[parameter.name] = Parameter(dims=dims, values=values)
 
     def initialize_scalar_parameters(self):
-        self.scalar_parameters = {spd['name']: read_scalar_data(spd['name']) for spd in self.definition.scalar_parameters}
+        self.scalar_parameters = {
+            spd['name']: read_scalar_data(spd['name']) for spd in self.definition.scalar_parameters
+        }
 
     def get_new_stock(self, with_dsm: bool=False, **kwargs):
         stock_definition = StockDefinition(**kwargs)
         if with_dsm:
-            return StockWithDSM(parent_alldims=self.dims, stock_definition=stock_definition)
+            return StockWithDSM.from_definition(parent_alldims=self.dims, stock_definition=stock_definition)
         else:
-            return Stock(parent_alldims=self.dims, stock_definition=stock_definition)
+            return Stock.from_definition(parent_alldims=self.dims, stock_definition=stock_definition)
 
     def get_new_array(self, **kwargs):
-        return NamedDimArray(parent_alldims=self.dims, **kwargs)
+        dims = self.dims.get_subset(kwargs['dim_letters']) if 'dim_letters' in kwargs else self.dims
+        return NamedDimArray(dims=dims, **kwargs)
 
     def get_subset_transformer(self, dim_letters: tuple):
         """
@@ -129,7 +136,7 @@ class MFASystem(ABC):
         dims = self.dims.get_subset(dim_letters)
         assert set(dims[0].items).issubset(set(dims[1].items)) or set(dims[1].items).issubset(set(dims[0].items)), \
             f"Dimensions '{dims[0].name}' and '{dims[1].name}' are not subset and superset or vice versa."
-        out = NamedDimArray(name=f'transform_{dims[0].letter}_<->_{dims[1].letter}', parent_alldims=dims)
+        out = NamedDimArray(name=f'transform_{dims[0].letter}_<->_{dims[1].letter}', dims=dims)
         # set all values to 1 if first axis item equals second axis item
         for i, item in enumerate(dims[0].items):
             if item in dims[1].items:

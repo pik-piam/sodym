@@ -8,15 +8,17 @@ https://github.com/IndEcol/ODYM
 
 Re-written for use in simson project
 """
-
+from copy import copy
 import numpy as np
 import pandas as pd
-from ..tools.read_data import read_data_to_df, get_np_from_df
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
+from typing import Optional
+
 from .dimensions import DimensionSet
-from .mfa_definition import FlowDefinition, ParameterDefinition
+from .mfa_definition import DefinitionWithDimLetters
 
 
-class NamedDimArray(object):
+class NamedDimArray(PydanticBaseModel):
     """"
     Parent class for an array with pre-defined dimensions, which are addressed by name.
     Operations between different multi-dimensional arrays can than be performed conveniently, as the dimensions are automatically matched.
@@ -42,50 +44,37 @@ class NamedDimArray(object):
 
     The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute.
     """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __init__(self, name: str = 'unnamed', dim_letters: tuple = None, parent_alldims: DimensionSet = None, values: np.ndarray = None):
+    dims: DimensionSet
+    values: Optional[np.ndarray] = None
+    name: Optional[str] = 'unnamed'
+
+    @model_validator(mode='after')
+    def fill_values(self):
+        if self.values is None:
+            self.values = np.zeros(self.dims.shape())
+        elif self.values.shape != self.dims.shape():
+            raise ValueError('Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet.')
+        return self
+
+    @classmethod
+    def from_definition_and_parent_alldims(
+        cls, definition: DefinitionWithDimLetters, parent_alldims: DimensionSet
+    ):
+        dims = parent_alldims.get_subset(definition.dim_letters)
+        return cls(dims=dims, **dict(definition))
+
+    @classmethod
+    def from_args(
+        cls, parent_alldims: DimensionSet, name: str = 'unnamed', dim_letters: tuple = None, values: np.ndarray = None
+    ):
         """
-        The minimal initialization sets only the name and the dimension letters.
-        Optionally,
-        - ...dimensions can be set in the form of a DimensionSet object, which is derived as a subset from a parent DimensionSet object.
-        - ...values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only computed later)
+        - dimensions are set in the form of a DimensionSet object, which is derived as a subset from a parent DimensionSet object.
+        - values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only computed later) or otherwise are filled with zeros
         """
-        self.name   = name # object name
-        assert type(dim_letters) == tuple or dim_letters is None, "dim_letters must be a tuple, if given"
-        self._dim_letters = dim_letters
-
-        self.dims = None
-        self.values = None
-
-        if parent_alldims is not None:
-            self.init_dimensions(parent_alldims)
-        if values is not None:
-            self.set_values(values)
-
-    def init_dimensions(self, parent_alldims: DimensionSet):
-        """
-        Get a DimensionSet object of the dimensions that the the array is defined over, by selecting the required subset of the parent_alldims.
-        After defining the dimensions, the shape of the value array is known and the array can be initialized.
-        """
-        self.dims = parent_alldims.get_subset(self._dim_letters) # object name
-        self.init_values()
-
-    def init_values(self):
-        self.values = np.zeros(self.dims.shape())
-
-    def load_values(self):
-        data = self.load_data()
-        self.set_values(data)
-
-    def load_data(self):
-        data = read_data_to_df(type='dataset', name=self.name)
-        data = get_np_from_df(data, self.dims.names)
-        return data
-
-    def set_values(self, values: np.ndarray):
-        assert self.values is not None, "Values not yet initialized"
-        assert values.shape == self.values.shape, "Shape of 'values' input array does not match dimensions of NamedDimArray object"
-        self.values[...] = values
+        dims = parent_alldims.get_subset(dim_letters)
+        return cls(dims=dims, name=name, values=values)
 
     def sub_array_handler(self, definition):
         return SubArrayHandler(self, definition)
@@ -112,86 +101,95 @@ class NamedDimArray(object):
         return values
 
     def cast_to(self, target_dims: DimensionSet):
-        return NamedDimArray(dim_letters=target_dims.letters,
-                             parent_alldims=target_dims,
-                             values=self.cast_values_to(target_dims))
+        return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims))
 
     def sum_values_to(self, result_dims: tuple = ()):
-        result = np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):
-        return NamedDimArray(dim_letters=result_dims,
-                             parent_alldims=self.dims,
-                             values=self.sum_values_to(result_dims))
+        return NamedDimArray(
+            dims=self.dims.get_subset(result_dims),
+            values=self.sum_values_to(result_dims)
+        )
 
     def sum_nda_over(self, sum_over_dims: tuple = ()):
         result_dims = tuple([d for d in self.dims.letters if d not in sum_over_dims])
-        return NamedDimArray(dim_letters=result_dims,
-                             parent_alldims=self.dims,
-                             values=self.sum_values_over(sum_over_dims))
+        return NamedDimArray(
+            dims=self.dims.get_subset(result_dims),
+            values=self.sum_values_over(sum_over_dims)
+        )
 
     def _prepare_other(self, other):
         assert isinstance(other, (NamedDimArray, int, float)), "Can only perform operations between two NamedDimArrays or NamedDimArray and scalar."
         if isinstance(other, (int, float)):
-            other = NamedDimArray(dim_letters=self.dims.letters,
-                                  parent_alldims=self.dims,
-                                  values=other * np.ones(self.shape))
+            other = NamedDimArray(dims=self.dims, values=other * np.ones(self.shape))
         return other
 
     def intersect_dims_with(self, other):
-        return DimensionSet(dimensions=list(set(self.dims).intersection(set(other.dims))))
+        matching_dims = []
+        for dim in self.dims.dimensions:
+            if dim.letter in other.dims.letters:
+                matching_dims.append(dim)
+        return DimensionSet(dimensions=matching_dims)
 
     def union_dims_with(self, other):
-        return DimensionSet(dimensions=list(set(self.dims).union(set(other.dims))))
+        all_dims = copy(self.dims.dimensions)
+        letters_self = self.dims.letters
+        for dim in other.dims.dimensions:
+            if dim.letter not in letters_self:
+                all_dims.append(dim)
+        return DimensionSet(dimensions=all_dims)
 
     def __add__(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                             parent_alldims=dims_out,
-                             values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters))
+        return NamedDimArray(
+            dims=dims_out,
+            values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
+        )
 
     def __sub__(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                                parent_alldims=dims_out,
-                                values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters))
+        return NamedDimArray(
+            dims=dims_out,
+            values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
+        )
 
     def __mul__(self, other):
         other = self._prepare_other(other)
         dims_out = self.union_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                             parent_alldims=dims_out,
-                             values=np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values))
+        values_out = np.einsum(
+            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values
+        )
+        return NamedDimArray(dims=dims_out, values=values_out)
 
     def __truediv__(self, other):
         other = self._prepare_other(other)
         dims_out = self.union_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                             parent_alldims=dims_out,
-                             values=np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1./other.values))
+        values_out = np.einsum(
+            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1./other.values
+        )
+        return NamedDimArray(dims=dims_out, values=values_out)
 
     def minimum(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                             parent_alldims=dims_out,
-                             values=np.minimum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)))
+        values_out = np.minimum(
+            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
+        )
+        return NamedDimArray(dims=dims_out, values=values_out)
 
     def maximum(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        return NamedDimArray(dim_letters=dims_out.letters,
-                             parent_alldims=dims_out,
-                             values=np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)))
+        values_out = np.maximum(
+            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
+        )
+        return NamedDimArray(dims=dims_out, values=values_out)
 
     def __neg__(self):
-        result = NamedDimArray(dim_letters=self.dims.letters,
-                               parent_alldims=self.dims,
-                               values=-self.values)
-        return result
+        return NamedDimArray(dims=self.dims, values=-self.values)
 
     def __radd__(self, other):
         return self + other
@@ -203,9 +201,7 @@ class NamedDimArray(object):
         return self * other
 
     def __rtruediv__(self, other):
-        inv_self = NamedDimArray(dim_letters=self.dims.letters,
-                                 parent_alldims=self.dims,
-                                 values=1/self.values)
+        inv_self = NamedDimArray(dims=self.dims, values=1/self.values)
         return inv_self * other
 
     def __getitem__(self, keys):
@@ -331,9 +327,8 @@ class SubArrayHandler():
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
         """
         assert not self.has_dim_with_several_items, "Cannot convert to NamedDimArray if there are dimensions with several items"
-        return NamedDimArray(dim_letters=self.dim_letters,
-                             parent_alldims=self.nda.dims,
-                             values=self.values_pointer)
+        dims = self.nda.dims.get_subset(self.dim_letters)
+        return NamedDimArray(dims=dims, values=self.values_pointer)
 
     def _init_ids(self):
         """
@@ -362,8 +357,7 @@ class SubArrayHandler():
         self._id_list[self.nda.dims.index(dim_letter)] = ids
 
 
-
-class Process():
+class Process(PydanticBaseModel):
     """
     Processes serve as nodes for the MFA system layout definition.
     Flows are defined between two processes. Stocks are connected to a process.
@@ -372,12 +366,16 @@ class Process():
     Processes get an ID by the order they are defined in  in the MFA system definition.
     The process with ID 0 necessarily contains everything outside the system boundary.
     """
+    name: str
+    id: int
 
-    def __init__(self, name: str, id: int):
-        if id == 0:
-            assert name == 'sysenv', "The process with ID 0 must be named 'sysenv', as it contains everything outside the system boundary."
-        self.name = name
-        self.id = id
+    @model_validator(mode='after')
+    def check_id0(self):
+        if self.id == 0 and self.name != 'sysenv':
+            raise ValueError(
+                "The process with ID 0 must be named 'sysenv', as it contains everything outside the system boundary."
+            )
+        return self
 
 
 class Flow(NamedDimArray):
@@ -388,26 +386,43 @@ class Flow(NamedDimArray):
 
     Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
     """
+    from_process: Optional[Process] = None
+    to_process: Optional[Process] = None
+    from_process_name: str
+    to_process_name: str
 
-    def __init__(self, flow_definition: FlowDefinition):
-        """
-        Wrapper for the NamedDimArray constructor (without initialization of dimensions and values).
-        Important: The flow name is defined here as a combination of the names of the two processes it connects.
-        """
-        name = f"{flow_definition.from_process} => {flow_definition.to_process}"
-        super().__init__(name, flow_definition.dim_letters)
-        self._from_process_name = flow_definition.from_process
-        self._to_process_name = flow_definition.to_process
+    # TODO: Define flow by passing process objects, rather than from flow definition.
+
+    @model_validator(mode='before')
+    def check_process_names(v):
+        if 'from_process' in v:
+            if v['from_process'].name != v['from_process_name']:
+                raise ValueError('Missmatching process names in Flow object')
+        if 'to_process' in v:
+            if not v['to_process'].name != v['to_process_name']:
+                raise ValueError('Missmatching process names in Flow object')
+        return v
+
+    @model_validator(mode='after')
+    def flow_name_related_to_proccesses(self):
+        self.name = f"{self.from_process_name} => {self.to_process_name}"
+        return self
 
     def attach_to_processes(self, processes: dict):
         """
         Store links to the Process objects the Flow connects, and their IDs.
         (To set up the links, the names given in the Flow definition dict are used)
         """
-        self.from_process = processes[self._from_process_name]
-        self.to_process = processes[self._to_process_name]
-        self.from_process_id = self.from_process.id
-        self.to_process_id = self.to_process.id
+        self.from_process = processes[self.from_process_name]
+        self.to_process = processes[self.to_process_name]
+
+    @property
+    def from_process_id(self):
+        return self.from_process.id
+
+    @property
+    def to_process_id(self):
+        return self.to_process.id
 
 
 class StockArray(NamedDimArray):
@@ -425,5 +440,4 @@ class Parameter(NamedDimArray):
 
     All methods are defined in the NamedDimArray parent class.
     """
-    def __init__(self, parameter_definition: ParameterDefinition):
-        super().__init__(parameter_definition.name, parameter_definition.dim_letters)
+    pass
