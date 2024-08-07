@@ -28,7 +28,6 @@ class Config:
 
         self.is_set = False
 
-
     def set_from_yml(self, filename):
         with open(filename, 'r') as stream:
             data = yaml.safe_load(stream)

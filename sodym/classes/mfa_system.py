@@ -11,6 +11,7 @@ Re-written for use in simson project
 
 import numpy as np
 from abc import ABC, abstractmethod
+from .mfa_definition import MFADefinition, StockDefinition
 from .named_dim_arrays import Flow, Parameter, Process, NamedDimArray
 from .stocks_in_mfa import Stock, StockWithDSM
 from .dimensions import Dimension, DimensionSet
@@ -42,23 +43,18 @@ class MFASystem(ABC):
         self.initialize_scalar_parameters()
 
     @abstractmethod
-    def fill_definition(self):
-        pass
-
-    @abstractmethod
     def compute(self):
         """
         Perform all computations for the MFA system.
         """
         pass
 
+    @abstractmethod
     def set_up_definition(self):
         """
         Wrapper for the fill_definition routine defined in the subclass
         """
         self.definition = MFADefinition()
-        self.fill_definition()
-        self.definition.check_complete()
 
     def set_up_dimensions(self):
         """
@@ -67,10 +63,9 @@ class MFASystem(ABC):
         this function loads a DimensionSet object, which includes loading of the items along each dimension.
         The mandatory Time dimension gets additional special treatment, to handle past and future.
         """
-        dim_constructor_args = [d | {'do_load': True} for d in self.definition.dimensions]
+        dim_constructor_args = [dict(d) | {'do_load': True} for d in self.definition.dimensions]
         self.dims = DimensionSet(arg_dicts_for_dim_constructors=dim_constructor_args)
         self.set_up_years()
-        self.check_consistency()
 
     def set_up_years(self):
         """
@@ -85,14 +80,6 @@ class MFASystem(ABC):
         self.i_historic = np.arange(self.historic_years.len)
         self.i_future = np.arange(self.historic_years.len, self.dims['Time'].len)
 
-    def check_consistency(self):
-        for dim in self.dims._list:
-            assert dim.items, f"Items of dimension {dim.name} not loaded yet"
-            assert len(dim.letter) == 1, f"Dimension letter must be a single character, but is {dim.letter}"
-            assert len(dim.name) > 1, f"Dimension name must be longer than one character to be unambiguously distinguishable from dim letter, but is {dim.name}"
-        # assert self.dims._list[0].name == 'Time', "First dimension must be Time"
-        # assert self.dims._list[1].name == 'Element', "Second dimension must be Element"
-
     def initialize_processes(self):
         """Convert the process definition list to dict of Process objects, indexed by name."""
         self.processes = {name: Process(name, id) for id, name in enumerate(self.definition.processes)}
@@ -102,21 +89,21 @@ class MFASystem(ABC):
         Convert the flow definition list to dict of Process objects initialized with value 0., indexed by name.
         Flow names are deducted from the processes they connect.
         """
-        flow_list = [Flow(**arg_dict) for arg_dict in self.definition.flows]
+        flow_list = [Flow(flow_definition) for flow_definition in self.definition.flows]
         self.flows = {f.name: f for f in flow_list}
         for f in self.flows.values():
             f.init_dimensions(self.dims)
             f.attach_to_processes(self.processes)
 
     def initialize_stocks(self):
-        self.stocks = {sd['name']: Stock(**sd) for sd in self.definition.stocks}
+        self.stocks = {sd.name: Stock(sd) for sd in self.definition.stocks}
         for s in self.stocks.values():
             s.init_dimensions(self.dims)
             s.init_arrays()
             s.attach_to_process(self.processes)
 
     def initialize_parameters(self):
-        self.parameters = {prd['name']: Parameter(**prd) for prd in self.definition.parameters}
+        self.parameters = {prd.name: Parameter(prd) for prd in self.definition.parameters}
         for p in self.parameters.values():
             p.init_dimensions(self.dims)
             p.load_values()
@@ -124,12 +111,12 @@ class MFASystem(ABC):
     def initialize_scalar_parameters(self):
         self.scalar_parameters = {spd['name']: read_scalar_data(spd['name']) for spd in self.definition.scalar_parameters}
 
-
     def get_new_stock(self, with_dsm: bool=False, **kwargs):
+        stock_definition = StockDefinition(**kwargs)
         if with_dsm:
-            return StockWithDSM(parent_alldims=self.dims, **kwargs)
+            return StockWithDSM(parent_alldims=self.dims, stock_definition=stock_definition)
         else:
-            return Stock(parent_alldims=self.dims, **kwargs)
+            return Stock(parent_alldims=self.dims, stock_definition=stock_definition)
 
     def get_new_array(self, **kwargs):
         return NamedDimArray(parent_alldims=self.dims, **kwargs)
@@ -142,7 +129,7 @@ class MFASystem(ABC):
         dims = self.dims.get_subset(dim_letters)
         assert set(dims[0].items).issubset(set(dims[1].items)) or set(dims[1].items).issubset(set(dims[0].items)), \
             f"Dimensions '{dims[0].name}' and '{dims[1].name}' are not subset and superset or vice versa."
-        out = Parameter(name=f'transform_{dims[0].letter}_<->_{dims[1].letter}', parent_alldims=dims)
+        out = NamedDimArray(name=f'transform_{dims[0].letter}_<->_{dims[1].letter}', parent_alldims=dims)
         # set all values to 1 if first axis item equals second axis item
         for i, item in enumerate(dims[0].items):
             if item in dims[1].items:
@@ -220,26 +207,3 @@ class MFASystem(ABC):
         Dictionary to change the string that variables are displayed with in figures.
         """
         return {}
-
-
-class MFADefinition():
-    """
-    Empty container for all information needed to define an MFA system, in the form of lists and dictionaries.
-    Is filled by the fill_definition routine in the subclass of MFASystem, which defines the system layout.
-    """
-
-    def __init__(self):
-        self.dimensions = None
-        self.processes = None
-        self.flows = None
-        self.stocks = None
-        self.parameters = None
-        self.scalar_parameters = None
-
-    def check_complete(self):
-        assert self.dimensions is not None
-        assert self.processes is not None
-        assert self.flows is not None
-        assert self.stocks is not None
-        assert self.parameters is not None
-        assert self.scalar_parameters is not None

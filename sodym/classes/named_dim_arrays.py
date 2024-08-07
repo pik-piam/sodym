@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from ..tools.read_data import read_data_to_df, get_np_from_df
 from .dimensions import DimensionSet
+from .mfa_definition import FlowDefinition, ParameterDefinition
 
 
 class NamedDimArray(object):
@@ -388,15 +389,15 @@ class Flow(NamedDimArray):
     Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
     """
 
-    def __init__(self, from_process: str, to_process: str, dim_letters: tuple):
+    def __init__(self, flow_definition: FlowDefinition):
         """
         Wrapper for the NamedDimArray constructor (without initialization of dimensions and values).
         Important: The flow name is defined here as a combination of the names of the two processes it connects.
         """
-        name = f"{from_process} => {to_process}"
-        super().__init__(name, dim_letters)
-        self._from_process_name = from_process
-        self._to_process_name = to_process
+        name = f"{flow_definition.from_process} => {flow_definition.to_process}"
+        super().__init__(name, flow_definition.dim_letters)
+        self._from_process_name = flow_definition.from_process
+        self._to_process_name = flow_definition.to_process
 
     def attach_to_processes(self, processes: dict):
         """
@@ -424,4 +425,5 @@ class Parameter(NamedDimArray):
 
     All methods are defined in the NamedDimArray parent class.
     """
-    pass
+    def __init__(self, parameter_definition: ParameterDefinition):
+        super().__init__(parameter_definition.name, parameter_definition.dim_letters)
