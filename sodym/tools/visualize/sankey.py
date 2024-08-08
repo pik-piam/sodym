@@ -19,9 +19,6 @@ def visualize_mfa_sankey(mfa: MFASystem):
     nodes = [p for p in mfa.processes.values() if p.name not in exclude_nodes]
     ids_in_sankey = {p.id: i for i, p in enumerate(nodes)}
     exclude_node_ids = [p.id for p in mfa.processes.values() if p.name in exclude_nodes]
-    flows = {f for f in mfa.flows.values() if (f.name not in exclude_flows
-                                               and f.from_process_id not in exclude_node_ids
-                                               and f.to_process_id not in exclude_node_ids)}
 
     if color_scheme == 'antique':
         material_colors = pl.colors.qualitative.Antique[:mfa.dims[cfg.product_dimension_name].len]
@@ -40,7 +37,10 @@ def visualize_mfa_sankey(mfa: MFASystem):
 
     product_dim_letter = cfg.product_dimension_name[0].lower()
 
-    for f in flows:
+    for f in mfa.flows.values():
+        if (f.name in exclude_flows) or (f.from_process_id in exclude_node_ids) or (
+            f.to_process_id in exclude_node_ids):
+            continue
         source = ids_in_sankey[f.from_process_id]
         target = ids_in_sankey[f.to_process_id]
         label = dn(f.name)
