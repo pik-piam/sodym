@@ -1,4 +1,3 @@
-import yaml
 
 
 class Config:
@@ -27,15 +26,6 @@ class Config:
         self.output_path = None
 
         self.is_set = False
-
-    def set_from_yml(self, filename):
-        with open(filename, 'r') as stream:
-            data = yaml.safe_load(stream)
-        for key, value in data.items():
-            if key not in self.__dict__:
-                raise ValueError(f"Parameter {key} from yml file not found in config container")
-            setattr(self, key, value)
-        self.is_set = True
 
     def __getattribute__(self, name: str):
         """

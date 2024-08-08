@@ -1,8 +1,18 @@
 import os
 import pickle
 from .config import cfg
-from .paths import export_path
 from ..classes.mfa_system import MFASystem
+
+
+def export_path(filename: str = None):
+    path_tuple = (cfg.output_path, 'export')
+    if filename is not None:
+        path_tuple += (filename,)
+    return os.path.join(*path_tuple)
+
+
+def figure_path(filename: str):
+    return os.path.join(cfg.output_path, 'figures', filename)
 
 
 def export(mfa: MFASystem):

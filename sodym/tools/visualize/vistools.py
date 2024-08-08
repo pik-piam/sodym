@@ -1,6 +1,6 @@
 from ...classes.mfa_system import MFASystem
 from ..config import cfg
-from ..paths import figure_path
+from ..export import figure_path
 from matplotlib import pyplot as plt
 import plotly.graph_objects as go
 
