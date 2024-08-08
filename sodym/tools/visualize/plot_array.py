@@ -3,9 +3,21 @@ import numpy as np
 from ...classes.named_dim_arrays import NamedDimArray
 
 
-def visualize_array(array: NamedDimArray, intra_line_dim, x_array: NamedDimArray=None, tile_dim=None, linecolor_dim=None, slice_dict=None, summed_dims=None, fig_ax=None, title=None, label_in=None):
-
-    assert not (linecolor_dim is not None and label_in is not None), "Either dim_lines or label_in can be given, but not both."
+def visualize_array(
+    array: NamedDimArray,
+    intra_line_dim,
+    x_array: NamedDimArray = None,
+    tile_dim=None,
+    linecolor_dim=None,
+    slice_dict=None,
+    summed_dims=None,
+    fig_ax=None,
+    title=None,
+    label_in=None,
+):
+    assert not (
+        linecolor_dim is not None and label_in is not None
+    ), "Either dim_lines or label_in can be given, but not both."
 
     fig, ax, nx, ny = get_fig_ax(array, tile_dim, fig_ax)
 
@@ -23,20 +35,23 @@ def visualize_array(array: NamedDimArray, intra_line_dim, x_array: NamedDimArray
         ax_tile = ax[i_tile // nx, i_tile % nx]
         item_tile = dim_item_name_by_index(array, tile_dim, i_tile)
         plot_tile(ax_tile, array_tile, x_tile, intra_line_dim, linecolor_dim, label_in, tile_dim, item_tile)
-    handles, labels = ax[0,0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc='lower center')
+    handles, labels = ax[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center")
     return fig, ax
 
 
 def plot_tile(ax_tile, array_tile, x_tile, intra_line_dim, linecolor_dim, label_in, tile_dim, item_tile):
     if tile_dim is not None:
-        ax_tile.set_title(f'{tile_dim}={item_tile}')
+        ax_tile.set_title(f"{tile_dim}={item_tile}")
 
     arrays_line = list_of_slices(array_tile, linecolor_dim)
     x_lines = list_of_slices(x_tile, linecolor_dim)
     for j, (array_line, x_line) in enumerate(zip(arrays_line, x_lines)):
         label = get_label(array_line, linecolor_dim, j, label_in)
-        assert array_line.dims.names == (intra_line_dim,), "All dimensions of array must be given exactly once. Either as x_dim / tile_dim / linecolor_dim, or in slice_dict or summed_dims."
+        assert array_line.dims.names == (intra_line_dim,), (
+            "All dimensions of array must be given exactly once. Either as x_dim / tile_dim / linecolor_dim, or in "
+            "slice_dict or summed_dims."
+        )
         if x_line is not None:
             x = x_line.values
         else:
@@ -44,11 +59,13 @@ def plot_tile(ax_tile, array_tile, x_tile, intra_line_dim, linecolor_dim, label_
         ax_tile.plot(x, array_line.values, label=label)
     ax_tile.set_xlabel(intra_line_dim)
 
+
 def dim_item_name_by_index(array: NamedDimArray, dim_name, i_item):
     if dim_name is None:
         return None
     else:
         return array.dims[dim_name].items[i_item]
+
 
 def sum_and_slice(array: NamedDimArray, slice_dict, summed_dims):
     array = array.sub_array_handler(slice_dict).to_nda()
@@ -56,14 +73,19 @@ def sum_and_slice(array: NamedDimArray, slice_dict, summed_dims):
         array = array.sum_nda_over(summed_dims)
     return array
 
+
 def list_of_slices(array, dim_to_slice, n_return_none=1):
     if array is None:
         return [None] * n_return_none
     elif dim_to_slice is not None:
-        arrays_tile = [array.sub_array_handler({array.dims[dim_to_slice].letter: item}).to_nda() for item in array.dims[dim_to_slice].items]
+        arrays_tile = [
+            array.sub_array_handler({array.dims[dim_to_slice].letter: item}).to_nda()
+            for item in array.dims[dim_to_slice].items
+        ]
     else:
         arrays_tile = [array]
     return arrays_tile
+
 
 def get_label(array: NamedDimArray, linecolor_dim, j, label_in):
     if label_in is not None:
@@ -71,6 +93,7 @@ def get_label(array: NamedDimArray, linecolor_dim, j, label_in):
     else:
         label = dim_item_name_by_index(array, linecolor_dim, j)
     return label
+
 
 def get_fig_ax(array, dim_tiles, fig_ax):
     if fig_ax is None:
@@ -84,6 +107,7 @@ def get_fig_ax(array, dim_tiles, fig_ax):
         fig, ax = fig_ax
         nx, ny = ax.shape
     return fig, ax, nx, ny
+
 
 def get_tiles(array, dim_tiles):
     n_tiles = array.dims[dim_tiles].len

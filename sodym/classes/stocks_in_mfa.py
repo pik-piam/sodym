@@ -24,8 +24,9 @@ class Stock(PydanticBaseModel):
     They consist of three NamedDimArrays: stock (the accumulation), inflow, outflow.
 
     The base class only allows to compute the stock from known inflow and outflow.
-    The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both inflow and outflow are known.
-    """
+    The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both
+    inflow and outflow are known."""
+
     stock: StockArray
     inflow: StockArray
     outflow: StockArray
@@ -34,7 +35,7 @@ class Stock(PydanticBaseModel):
     process: Optional[Process] = None
 
     @classmethod
-    def from_definition(cls, stock_definition: StockDefinition, parent_alldims: DimensionSet=None):
+    def from_definition(cls, stock_definition: StockDefinition, parent_alldims: DimensionSet = None):
         dims = parent_alldims.get_subset(stock_definition.dim_letters)
         name = stock_definition.name
         stock = StockArray(dims=dims, name=f"{name}_stock")
@@ -51,17 +52,16 @@ class Stock(PydanticBaseModel):
         return self.process.id
 
     def compute_stock(self):
-        self.stock.values[...] = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index('t'))
+        self.stock.values[...] = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index("t"))
 
 
 class StockWithDSM(Stock):
+    """Computes stocks, inflows and outflows based on a lifetime distribution function.
+
+    It does so by interfacing the Stock class, which is based on NamedDimArray objects with the DynamicStockModel class,
+    which contains the number crunching and takes numpy arrays as input.
     """
-    Computes stocks, inflows and outflows based on a lifetime distribution function.
-    It does so by interfacing
-    the Stock class, which is based on NamedDimArray objects
-    with
-    the DynamicStockModel class, which contains the number crunching and takes numpy arrays as input.
-    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     dsm: Optional[DynamicStockModel] = None
@@ -83,11 +83,13 @@ class StockWithDSM(Stock):
     def compute_inflow_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.inflow is not None, "inflow not yet set"
-        self.dsm = DynamicStockModel(shape=self.stock.dims.shape(),
-                                     inflow=self.inflow.values,
-                                     ldf_type=self.ldf_type,
-                                     lifetime_mean=self.lifetime_mean.values,
-                                     lifetime_std=self.lifetime_std.values)
+        self.dsm = DynamicStockModel(
+            shape=self.stock.dims.shape(),
+            inflow=self.inflow.values,
+            ldf_type=self.ldf_type,
+            lifetime_mean=self.lifetime_mean.values,
+            lifetime_std=self.lifetime_std.values,
+        )
         self.dsm.compute_inflow_driven()
         self.outflow.values[...] = self.dsm.outflow
         self.stock.values[...] = self.dsm.stock
@@ -95,11 +97,13 @@ class StockWithDSM(Stock):
     def compute_stock_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.stock is not None, "stock arry not yet set"
-        self.dsm = DynamicStockModel(shape=self.stock.dims.shape(),
-                                     stock=self.stock.values,
-                                     ldf_type=self.ldf_type,
-                                     lifetime_mean=self.lifetime_mean.values,
-                                     lifetime_std=self.lifetime_std.values)
+        self.dsm = DynamicStockModel(
+            shape=self.stock.dims.shape(),
+            stock=self.stock.values,
+            ldf_type=self.ldf_type,
+            lifetime_mean=self.lifetime_mean.values,
+            lifetime_std=self.lifetime_std.values,
+        )
         self.dsm.compute_stock_driven()
         self.inflow.values[...] = self.dsm.inflow
         self.outflow.values[...] = self.dsm.outflow
