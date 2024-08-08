@@ -8,6 +8,7 @@ https://github.com/IndEcol/ODYM
 
 Re-written for use in simson project
 """
+
 from copy import copy
 import numpy as np
 import pandas as pd
@@ -19,59 +20,64 @@ from .mfa_definition import DefinitionWithDimLetters
 
 
 class NamedDimArray(PydanticBaseModel):
-    """"
-    Parent class for an array with pre-defined dimensions, which are addressed by name.
-    Operations between different multi-dimensional arrays can than be performed conveniently, as the dimensions are automatically matched.
+    """ "Parent class for an array with pre-defined dimensions, which are addressed by name. Operations between
+    different multi-dimensional arrays can than be performed conveniently, as the dimensions are automatically matched.
 
-    In order to 'fix' the dimensions of the array, the array has to be 'declared' by calling the NamedDimArray object constructor with a set of dimensions before working with it.
+    In order to 'fix' the dimensions of the array, the array has to be 'declared' by calling the NamedDimArray object
+    constructor with a set of dimensions before working with it.
     Basic mathematical operations between NamedDimArrays are defined, which return a NamedDimArray object as a result.
 
-    In order to set the values of a NamedDimArray object to that of another one, the ellipsis slice ('[...]') can be used, e.g.
+    In order to set the values of a NamedDimArray object to that of another one, the ellipsis slice ('[...]') can be
+    used, e.g.
     foo[...] = bar.
-    This ensures that the dimensionality of the array (foo) is not changed, and that the dimensionality of the right-hand side NamedDimArray (bar) is consistent.
+    This ensures that the dimensionality of the array (foo) is not changed, and that the dimensionality of the
+    right-hand side NamedDimArray (bar) is consistent.
     While the syntaxes like of 'foo = bar + baz' are also possible (where 'bar' and 'baz' are NamedDimArrays),
     it is not recommended, as it provides no control over the dimensionality of 'foo'. Use foo[...] = bar + baz instead.
 
-    The values of the NamedDimArray object are stored in a numpy array, and can be accessed directly via the 'values' attribute.
+    The values of the NamedDimArray object are stored in a numpy array, and can be accessed directly via the 'values'
+    attribute.
     So if type(bar) is np.ndarray, the operation
     foo.values[...] = bar
     is also possible.
-    It is not recommended to use 'foo.values = bar' without the slice, as this might change the dimensionality of foo.values.
+    It is not recommended to use 'foo.values = bar' without the slice, as this might change the dimensionality of
+    foo.values.
 
     Subsets of arrays can be set or retrieved.
     Here, slicing information is passed instead of the ellipsis to the square brackets of the NamedDimArray, i.e.
-    foo[keys] = bar or foo = bar[keys]. For details on the allowed values of 'keys', see the docstring of the SubArrayHandler class.
+    foo[keys] = bar or foo = bar[keys]. For details on the allowed values of 'keys', see the docstring of the
+    SubArrayHandler class.
 
-    The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute.
-    """
+    The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     dims: DimensionSet
     values: Optional[np.ndarray] = None
-    name: Optional[str] = 'unnamed'
+    name: Optional[str] = "unnamed"
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def fill_values(self):
         if self.values is None:
             self.values = np.zeros(self.dims.shape())
         elif self.values.shape != self.dims.shape():
-            raise ValueError('Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet.')
+            raise ValueError("Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet.")
         return self
 
     @classmethod
-    def from_definition_and_parent_alldims(
-        cls, definition: DefinitionWithDimLetters, parent_alldims: DimensionSet
-    ):
+    def from_definition_and_parent_alldims(cls, definition: DefinitionWithDimLetters, parent_alldims: DimensionSet):
         dims = parent_alldims.get_subset(definition.dim_letters)
         return cls(dims=dims, **dict(definition))
 
     @classmethod
     def from_args(
-        cls, parent_alldims: DimensionSet, name: str = 'unnamed', dim_letters: tuple = None, values: np.ndarray = None
+        cls, parent_alldims: DimensionSet, name: str = "unnamed", dim_letters: tuple = None, values: np.ndarray = None
     ):
         """
-        - dimensions are set in the form of a DimensionSet object, which is derived as a subset from a parent DimensionSet object.
-        - values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only computed later) or otherwise are filled with zeros
+        - dimensions are set in the form of a DimensionSet object, which is derived as a subset from a parent
+          DimensionSet object.
+        - values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only
+          computed later) or otherwise are filled with zeros
         """
         dims = parent_alldims.get_subset(dim_letters)
         return cls(dims=dims, name=name, values=values)
@@ -91,9 +97,15 @@ class NamedDimArray(PydanticBaseModel):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def cast_values_to(self, target_dims: DimensionSet):
-        assert all([d in target_dims.letters for d in self.dims.letters]), f"Target of cast must contain all dimensions of the object! Source dims '{self.dims.string}' are not all contained in target dims '{target_dims.string}'. Maybe use sum_values_to() before casting"
+        assert all([d in target_dims.letters for d in self.dims.letters]), (
+            "Target of cast must contain all " \
+            f"dimensions of the object! Source dims '{self.dims.string}' are not all contained in target dims " \
+            f"'{target_dims.string}'. Maybe use sum_values_to() before casting"
+        )
         # safety procedure: order dimensions
-        values = np.einsum(f"{self.dims.string}->{''.join([d for d in target_dims.letters if d in self.dims.letters])}", self.values)
+        values = np.einsum(
+            f"{self.dims.string}->{''.join([d for d in target_dims.letters if d in self.dims.letters])}", self.values
+        )
         index = tuple([slice(None) if d in self.dims.letters else np.newaxis for d in target_dims.letters])
         multiple = tuple([1 if d.letter in self.dims.letters else d.len for d in target_dims])
         values = values[index]
@@ -107,20 +119,16 @@ class NamedDimArray(PydanticBaseModel):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):
-        return NamedDimArray(
-            dims=self.dims.get_subset(result_dims),
-            values=self.sum_values_to(result_dims)
-        )
+        return NamedDimArray(dims=self.dims.get_subset(result_dims), values=self.sum_values_to(result_dims))
 
     def sum_nda_over(self, sum_over_dims: tuple = ()):
         result_dims = tuple([d for d in self.dims.letters if d not in sum_over_dims])
-        return NamedDimArray(
-            dims=self.dims.get_subset(result_dims),
-            values=self.sum_values_over(sum_over_dims)
-        )
+        return NamedDimArray(dims=self.dims.get_subset(result_dims), values=self.sum_values_over(sum_over_dims))
 
     def _prepare_other(self, other):
-        assert isinstance(other, (NamedDimArray, int, float)), "Can only perform operations between two NamedDimArrays or NamedDimArray and scalar."
+        assert isinstance(other, (NamedDimArray, int, float)), (
+            "Can only perform operations between two " "NamedDimArrays or NamedDimArray and scalar."
+        )
         if isinstance(other, (int, float)):
             other = NamedDimArray(dims=self.dims, values=other * np.ones(self.shape))
         return other
@@ -144,48 +152,40 @@ class NamedDimArray(PydanticBaseModel):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
         return NamedDimArray(
-            dims=dims_out,
-            values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
+            dims=dims_out, values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
         )
 
     def __sub__(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
         return NamedDimArray(
-            dims=dims_out,
-            values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
+            dims=dims_out, values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
         )
 
     def __mul__(self, other):
         other = self._prepare_other(other)
         dims_out = self.union_dims_with(other)
-        values_out = np.einsum(
-            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values
-        )
+        values_out = np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values)
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __truediv__(self, other):
         other = self._prepare_other(other)
         dims_out = self.union_dims_with(other)
         values_out = np.einsum(
-            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1./other.values
+            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1.0 / other.values
         )
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def minimum(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        values_out = np.minimum(
-            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
-        )
+        values_out = np.minimum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def maximum(self, other):
         other = self._prepare_other(other)
         dims_out = self.intersect_dims_with(other)
-        values_out = np.maximum(
-            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
-        )
+        values_out = np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __neg__(self):
@@ -201,24 +201,23 @@ class NamedDimArray(PydanticBaseModel):
         return self * other
 
     def __rtruediv__(self, other):
-        inv_self = NamedDimArray(dims=self.dims, values=1/self.values)
+        inv_self = NamedDimArray(dims=self.dims, values=1 / self.values)
         return inv_self * other
 
     def __getitem__(self, keys):
-        """
-        Defines what is returned when the object with square brackets stands on the right-hand side of an assignment, e.g. foo = foo = bar[{'e': 'C'}]
-        Here, it is solely used for slicing, the the input tot the square brackets must be a dictionary defining the slice.
-        """
+        """Defines what is returned when the object with square brackets stands on the right-hand side of an assignment,
+        e.g. foo = foo = bar[{'e': 'C'}] Here, it is solely used for slicing, the the input tot the square brackets must
+        be a dictionary defining the slice."""
         return self.sub_array_handler(keys).to_nda()
 
     def __setitem__(self, keys, item):
-        """
-        Defines what is returned when the object with square brackets stands on the left-hand side of an assignment, i.e. 'foo[bar] = baz'
-        For allowed values in the square brackets (bar), see the docstring of the SubArrayHandler class.
+        """Defines what is returned when the object with square brackets stands on the left-hand side of an assignment,
+        i.e. 'foo[bar] = baz' For allowed values in the square brackets (bar), see the docstring of the SubArrayHandler
+        class.
 
         The RHS (baz) is required here to be a NamedDimArray.
-        If you want to set the values of a NamedDimArray object directly to a numpy array, use the syntax 'foo.values[...] = bar'.
-        """
+        If you want to set the values of a NamedDimArray object directly to a numpy array, use the syntax
+        'foo.values[...] = bar'."""
         assert isinstance(item, NamedDimArray), "Item on RHS of assignment must be a NamedDimArray"
         slice_obj = self.sub_array_handler(keys)
         slice_obj.values_pointer[...] = item.sum_values_to(slice_obj.dim_letters)
@@ -226,15 +225,15 @@ class NamedDimArray(PydanticBaseModel):
     def to_df(self):
         index = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
         df = index.to_frame(index=False)
-        df['value'] = self.values.flatten()
+        df["value"] = self.values.flatten()
         return df
 
 
-class SubArrayHandler():
-    """
-    This class handles subsets of the 'values' numpy array of a NamedDimArray object, created by slicing along one or several dimensions.
-    It specifies the behavior of foo[definition] = bar and foo = bar[definition], where foo and bar are NamedDimArray objects.
-    This is done via the __getitem__ and __setitem__ methods of the NamedDimArray class.
+class SubArrayHandler:
+    """This class handles subsets of the 'values' numpy array of a NamedDimArray object, created by slicing along one or
+    several dimensions. It specifies the behavior of foo[definition] = bar and foo = bar[definition], where foo and bar
+    are NamedDimArray objects. This is done via the __getitem__ and __setitem__ methods of the NamedDimArray class.
+
     It returns either
     - a new NamedDimArray object (via the to_nda() function), or
     - a pointer to a subset of the values array of the parent NamedDimArray object, via the values_pointer attribute.
@@ -246,12 +245,16 @@ class SubArrayHandler():
       The dictionary has the form {'dim_letter': 'item_name'}.
         Example: foo[{'e': 'C'}] addresses all values where the element is carbon,
       Instead of a single 'item_name', a list of 'item_names' can be passed.
-        Example: foo[{'e': 'C', 'r': ['EUR', 'USA']}] addresses all values where the element is carbon and the region is Europe or the USA.
-    - Instead of a dictionary, an item name can be passed directly. In this case, the dimension is inferred from the item name.
+        Example: foo[{'e': 'C', 'r': ['EUR', 'USA']}] addresses all values where the element is carbon and the region is
+        Europe or the USA.
+    - Instead of a dictionary, an item name can be passed directly. In this case, the dimension is inferred from the
+      item name.
       Throws an error if the item name is not unique, i.e. occurs in more than one dimension.
         Example: foo['C'] addresses all values where the element is carbon
-      Several comma-separated item names can be passed, which appear in __getitem__ and __setitem__ methods as a tuple. Those can either be in the same dimension or in different dimensions.
-        Example: foo['C', 'EUR', 'USA'] addresses all values where the element is carbon and the region is Europe or the USA.
+      Several comma-separated item names can be passed, which appear in __getitem__ and __setitem__ methods as a tuple.
+      Those can either be in the same dimension or in different dimensions.
+        Example: foo['C', 'EUR', 'USA'] addresses all values where the element is carbon and the region is Europe or the
+        USA.
 
     Note that does not inherit from NamedDimArray, so it is not a NamedDimArray object itself.
     However, one can use it to create a NamedDimArray object with the to_nda() method.
@@ -275,12 +278,18 @@ class SubArrayHandler():
 
     def to_dict_single_item(self, item):
         if isinstance(item, slice):
-            raise ValueError("Numpy indexing of NamedDimArrays is not supported. Details are given in the NamedDimArray class docstring.")
+            raise ValueError(
+                "Numpy indexing of NamedDimArrays is not supported. Details are given in the NamedDimArray class "
+                "docstring."
+            )
         dict_out = None
         for d in self.nda.dims:
             if item in d.items:
                 if dict_out is not None:
-                    raise ValueError(f"Ambiguous slicing: Item '{item}' is found in multiple dimensions. Please specify the dimension by using a slicing dict instead.")
+                    raise ValueError(
+                        f"Ambiguous slicing: Item '{item}' is found in multiple dimensions. Please specify the "
+                        "dimension by using a slicing dict instead."
+                    )
                 dict_out = {d.letter: item}
         if dict_out is None:
             raise ValueError(f"Slicing item '{item}' not found in any dimension.")
@@ -290,7 +299,7 @@ class SubArrayHandler():
         dict_out = {}
         for item in slice_def:
             key, value = self.to_dict_single_item(item)
-            if key not in dict_out: # if key does not exist, add it
+            if key not in dict_out:  # if key does not exist, add it
                 dict_out[key] = [value]
             else:
                 dict_out[key].append(value)
@@ -299,34 +308,30 @@ class SubArrayHandler():
 
     @property
     def ids(self):
-        """
-        Indices used for slicing the values array
-        """
+        """Indices used for slicing the values array."""
         return tuple(self._id_list)
 
     @property
     def values_pointer(self):
-        """
-        Pointer to the subset of the values array of the parent NamedDimArray object.
-        """
+        """Pointer to the subset of the values array of the parent NamedDimArray object."""
         return self.nda.values[self.ids]
 
     @property
     def dim_letters(self):
-        """
-        Updated dimension letters, where sliced dimensions with only one item along that direction are removed.
-        """
+        """Updated dimension letters, where sliced dimensions with only one item along that direction are removed."""
         all_letters = self.nda.dims.letters
         # remove the dimensions along which there is only one item
         letters_removed = [d for d, items in self.def_dict.items() if isinstance(items, str)]
         return tuple([d for d in all_letters if d not in letters_removed])
 
     def to_nda(self):
-        """
-        Return a NamedDimArray object that is a slice of the original NamedDimArray object.
+        """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
+
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
         """
-        assert not self.has_dim_with_several_items, "Cannot convert to NamedDimArray if there are dimensions with several items"
+        assert (
+            not self.has_dim_with_several_items
+        ), "Cannot convert to NamedDimArray if there are dimensions with several items"
         dims = self.nda.dims.get_subset(self.dim_letters)
         return NamedDimArray(dims=dims, values=self.values_pointer)
 
@@ -340,14 +345,12 @@ class SubArrayHandler():
             item_ids_singledim = self._get_items_ids(dim_letter, item_or_items)
             self._set_ids_singledim(dim_letter, item_ids_singledim)
 
-
     def _get_items_ids(self, dim_letter, item_or_items):
-        """
-        Given either a single item name or a list of item names, return the corresponding item IDs, along one dimension 'dim_letter'.
-        """
-        if isinstance(item_or_items, str): # single item
+        """Given either a single item name or a list of item names, return the corresponding item IDs, along one
+        dimension 'dim_letter'."""
+        if isinstance(item_or_items, str):  # single item
             return self._get_single_item_id(dim_letter, item_or_items)
-        elif isinstance(item_or_items, (tuple, list, np.ndarray)): # list of items
+        elif isinstance(item_or_items, (tuple, list, np.ndarray)):  # list of items
             return [self._get_single_item_id(dim_letter, item) for item in item_or_items]
 
     def _get_single_item_id(self, dim_letter, item_name):
@@ -358,20 +361,19 @@ class SubArrayHandler():
 
 
 class Process(PydanticBaseModel):
-    """
-    Processes serve as nodes for the MFA system layout definition.
-    Flows are defined between two processes. Stocks are connected to a process.
-    Processes do not contain values themselves.
+    """Processes serve as nodes for the MFA system layout definition. Flows are defined between two processes. Stocks
+    are connected to a process. Processes do not contain values themselves.
 
-    Processes get an ID by the order they are defined in  in the MFA system definition.
-    The process with ID 0 necessarily contains everything outside the system boundary.
+    Processes get an ID by the order they are defined in  in the MFA system definition. The process with ID 0
+    necessarily contains everything outside the system boundary.
     """
+
     name: str
     id: int
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def check_id0(self):
-        if self.id == 0 and self.name != 'sysenv':
+        if self.id == 0 and self.name != "sysenv":
             raise ValueError(
                 "The process with ID 0 must be named 'sysenv', as it contains everything outside the system boundary."
             )
@@ -379,13 +381,12 @@ class Process(PydanticBaseModel):
 
 
 class Flow(NamedDimArray):
-    """
-    The values of Flow objects are the main computed outcome of the MFA system.
-    A flow connects two processes.
-    Its name is set as a combination of the names of the two processes it connects.
+    """The values of Flow objects are the main computed outcome of the MFA system. A flow connects two processes. Its
+    name is set as a combination of the names of the two processes it connects.
 
     Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
     """
+
     from_process: Optional[Process] = None
     to_process: Optional[Process] = None
     from_process_name: str
@@ -393,24 +394,24 @@ class Flow(NamedDimArray):
 
     # TODO: Define flow by passing process objects, rather than from flow definition.
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def check_process_names(v):
-        if 'from_process' in v:
-            if v['from_process'].name != v['from_process_name']:
-                raise ValueError('Missmatching process names in Flow object')
-        if 'to_process' in v:
-            if not v['to_process'].name != v['to_process_name']:
-                raise ValueError('Missmatching process names in Flow object')
+        if "from_process" in v:
+            if v["from_process"].name != v["from_process_name"]:
+                raise ValueError("Missmatching process names in Flow object")
+        if "to_process" in v:
+            if not v["to_process"].name != v["to_process_name"]:
+                raise ValueError("Missmatching process names in Flow object")
         return v
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def flow_name_related_to_proccesses(self):
         self.name = f"{self.from_process_name} => {self.to_process_name}"
         return self
 
     def attach_to_processes(self, processes: dict):
-        """
-        Store links to the Process objects the Flow connects, and their IDs.
+        """Store links to the Process objects the Flow connects, and their IDs.
+
         (To set up the links, the names given in the Flow definition dict are used)
         """
         self.from_process = processes[self.from_process_name]
@@ -426,18 +427,19 @@ class Flow(NamedDimArray):
 
 
 class StockArray(NamedDimArray):
+    """Stocks allow accumulation of material at a process, i.e. between two flows.
+
+    As Stock contains NamedDimArrays for its stock value, inflow and outflow. For details, see the Stock class.
     """
-    Stocks allow accumulation of material at a process, i.e. between two flows.
-    As Stock contains NamedDimArrays for its stock value, inflow and outflow.
-    For details, see the Stock class.
-    """
+
     pass
 
 
 class Parameter(NamedDimArray):
-    """
-    Parameters are used for example to define the share of flows that go into one branch when the flow splits at a process.
+    """Parameters are used for example to define the share of flows that go into one branch when the flow splits at a
+    process.
 
     All methods are defined in the NamedDimArray parent class.
     """
+
     pass
