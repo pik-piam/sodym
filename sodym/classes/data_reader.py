@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from typing import List
 import yaml
-import os
 
 from .named_dim_arrays import Parameter
 from .mfa_definition import DimensionDefinition
@@ -29,43 +28,32 @@ class DataReader(ABC):
         pass
 
 
-class JakobsDataReader(DataReader):
-    def __init__(self, input_data_path):
-        self.input_data_path = input_data_path
+class ExampleDataReader(DataReader):
+    def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
+        self.scalar_data_yaml = scalar_data_yaml  # file_name
+        self.parameter_datasets = parameter_datasets  # {parameter_name: file_name, ...}
+        self.dimension_datasets = dimension_datasets  # {dimension_name: file_name, ...}
 
     def read_scalar_data(self, parameters: List[str]):
-        path = os.path.join(self.input_data_path, 'scalar_parameters.yml')
         try:
-            with open(path, 'r') as stream:
+            with open(self.scalar_data_yaml, 'r') as stream:
                 data = yaml.safe_load(stream)
         except FileNotFoundError:
             return {}
         return {name: data[name] for name in data if name in parameters}
 
     def read_parameter_values(self, parameter: str, dims):
-        data = self.read_data_to_df(type='dataset', name=parameter)
+        datasets_path = self.parameter_datasets[parameter]
+        data = pd.read_csv(datasets_path)
         values = self.get_np_from_df(data, dims.names)
         return Parameter(dims=dims, values=values)
-    
+
     def read_dimension(self, definition: DimensionDefinition):
-        data = self.read_data_to_list("dimension", definition.filename, definition.dtype)
-        return Dimension(name=definition.name, letter=definition.letter, items=data)
-
-    def read_data_to_df(self, type: str, name: str):
-        if type != 'dataset':
-            raise RuntimeError(f"Invalid type {type}.")
-        datasets_path = os.path.join(self.input_data_path, 'datasets', f'{name}.csv')
-        data = pd.read_csv(datasets_path)
-        return data
-
-    def read_data_to_list(self, type: str, name: str, dtype: type):
-        if type != 'dimension':
-            raise RuntimeError(f"Invalid type {type}.")
-        path = os.path.join(self.input_data_path, 'dimensions', f'{name}.csv')
-        data = np.loadtxt(path, dtype=dtype, delimiter=';').tolist()
+        path = self.dimension_datasets[definition.name]
+        data = np.loadtxt(path, dtype=definition.dtype, delimiter=';').tolist()
         # catch size one lists, which are transformed to scalar by np.ndarray.tolist()
         data = data if isinstance(data, list) else [data]
-        return data
+        return Dimension(name=definition.name, letter=definition.letter, items=data)
 
     @staticmethod
     def get_np_from_df(df_in: pd.DataFrame, dims: tuple):

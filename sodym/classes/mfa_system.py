@@ -64,7 +64,7 @@ class MFASystem(ABC):
         Get indices for all historic and future years for array slicing."""
         self.years = self.dims._dict['Time']
         self.historic_years = self.data_reader.read_dimension(
-            DimensionDefinition(name='historic_years', dim_letter='h', filename='historic_years', dtype=int)
+            DimensionDefinition(name='Historic Time', dim_letter='h', dtype=int)
         )
         future_years = [y for y in self.dims['Time'].items if y not in self.historic_years.items]
         self.future_years = Dimension(name='future_years', dim_letter='f', items=future_years)
