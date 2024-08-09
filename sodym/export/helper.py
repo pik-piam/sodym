@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
-from ...classes.named_dim_arrays import NamedDimArray
+from ..classes.named_dim_arrays import NamedDimArray
 
 
 def visualize_array(
