@@ -3,58 +3,35 @@ import os
 import pickle
 from typing import Optional
 
-from matplotlib import pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-from pydantic import BaseModel as PydanticBaseModel, ConfigDict
+from pydantic import BaseModel as PydanticBaseModel
 
 from ..classes.mfa_system import MFASystem
 
 
 class DataWriter(PydanticBaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    mfa: MFASystem
-    output_path: str
-    do_save_figs: bool = True
-    do_show_figs: bool = True
-    do_export: dict = {'pickle': True, 'csv': True}
     sankey: dict = {'do_visualize': True, 'color_scheme': 'blueish'}
     display_names: Optional[dict] = {}
 
-    def export(self):
-        if self.do_export.get("pickle", False):
-            self._export_to_pickle()
-        if self.do_export.get("csv", False):
-            self._export_to_csv()
-
-    def visualize_results(self):
+    def visualize_results(self, mfa: MFASystem):
         if self.sankey['do_visualize']:
-            self.visualize_sankey()
+            self.visualize_sankey(mfa=mfa)
 
-    def export_path(self, filename: str = None):
-        path_tuple = (self.output_path, 'export')
-        if filename is not None:
-            path_tuple += (filename,)
-        return os.path.join(*path_tuple)
+    def export_mfa_to_pickle(self, mfa: MFASystem, export_path: str):
+        dict_out = self._convert_to_dict(mfa)
+        pickle.dump(dict_out, open(export_path, "wb"))
+        logging.info(f'Data saved to {export_path}')
 
-    def figure_path(self, filename: str):
-        return os.path.join(self.output_path, 'figures', filename)
-
-    def _export_to_pickle(self):
-        dict_out = self._convert_to_dict(self.mfa)
-        pickle.dump(dict_out, open(self.export_path("mfa.pickle"), "wb"))
-        logging.info(f'Data saved to {self.export_path("mfa.picke")}')
-
-    def _export_to_csv(self):
-        dir_out = os.path.join(self.export_path(), "flows")
-        if not os.path.exists(dir_out):
-            os.makedirs(dir_out)
-        for flow_name, flow in self.mfa.flows.items():
+    def export_mfa_flows_to_csv(self, mfa: MFASystem, export_directory: str):
+        if not os.path.exists(export_directory):
+            os.makedirs(export_directory)
+        for flow_name, flow in mfa.flows.items():
             df = flow.to_df()
-            path_out = os.path.join(dir_out, f'{flow_name.replace(" => ", "__2__")}.csv')
+            path_out = os.path.join(export_directory, f'{flow_name.replace(" => ", "__2__")}.csv')
             df.to_csv(path_out, index=False)
-        logging.info(f'Data saved in directory {dir_out}')
+        logging.info(f'Data saved in directory {export_directory}')
 
     @staticmethod
     def _convert_to_dict(mfa: MFASystem):
@@ -68,20 +45,7 @@ class DataWriter(PydanticBaseModel):
     def _display_name(self, name):
         return self.display_names[name] if name in self.display_names else name
 
-    def _show_and_save_pyplot(self, fig, name):
-        if self.do_save_figs:
-            plt.savefig(self.figure_path(f"{name}.png"))
-        if self.do_show_figs:
-            plt.show()
-
-    def _show_and_save_plotly(self, fig: go.Figure, name):
-        if self.do_save_figs:
-            fig.write_image(self.figure_path(f"{name}.png"))
-        if self.do_show_figs:
-            fig.show()
-
-    def visualize_sankey(self):
-        mfa = self.mfa
+    def visualize_sankey(self, mfa: MFASystem):
         # exclude_nodes = ['sysenv', 'atmosphere', 'emission', 'captured']
         exclude_nodes = ["sysenv"]
         exclude_flows = []
@@ -150,7 +114,7 @@ class DataWriter(PydanticBaseModel):
                     except IndexError:
                         pass
             else:
-                add_link(label=label, source=source, target=target, color="hsl(230,20,70)",    value=values)
+                add_link(label=label, source=source, target=target, color="hsl(230,20,70)", value=values)
 
         fig = go.Figure(
             go.Sankey(
@@ -165,4 +129,4 @@ class DataWriter(PydanticBaseModel):
                 link=link_dict,
             )
         )
-        self._show_and_save_plotly(fig, "sankey")
+        return fig
