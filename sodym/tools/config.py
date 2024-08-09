@@ -1,11 +1,8 @@
 
 
 class Config:
-
     def __init__(self):
-        """"
-        define possible parameters and initialize to None
-        """
+        """ " define possible parameters and initialize to None."""
 
         self.model_class = None
 
@@ -28,10 +25,8 @@ class Config:
         self.is_set = False
 
     def __getattribute__(self, name: str):
-        """
-        If any config value is accessed, check if config is set first
-        """
-        if not object.__getattribute__(self, 'is_set') and name not in ['__dict__', 'set_from_yml']:
+        """If any config value is accessed, check if config is set first."""
+        if not object.__getattribute__(self, "is_set") and name not in ["__dict__", "set_from_yml"]:
             raise ValueError("Config not set. Please use cfg.set_from_yml() at the beginning of your program.")
         return object.__getattribute__(self, name)
 

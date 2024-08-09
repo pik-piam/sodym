@@ -12,19 +12,17 @@ Re-written for use in simson project
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices
 
-from .mfa_definition import DimensionDefinition
-
 
 class Dimension(PydanticBaseModel):
+    """One of multiple dimensions over which MFA arrays are defined.
+
+    Defined by a name, a letter for shorter addressing, and a list of items. For example, the dimension 'Region' could
+    have letter 'r' and a country list as items. The list of items can be loaded from a csv file, or set directly, for
+    example if a subset of an existing dimension is formed.
     """
-    One of multiple dimensions over which MFA arrays are defined.
-    Defined by a name, a letter for shorter addressing, and a list of items.
-    For example, the dimension 'Region' could have letter 'r' and a country list as items.
-    The list of items can be loaded from a csv file, or set directly,
-    for example if a subset of an existing dimension is formed.
-    """
+
     name: str = Field(..., min_length=2)
-    letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices('letter', 'dim_letter'))
+    letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter"))
     items: list
 
     @property
@@ -36,19 +34,19 @@ class Dimension(PydanticBaseModel):
 
 
 class DimensionSet(PydanticBaseModel):
+    """A set of Dimension objects which MFA arrays are defined over.
+
+    The objects are stored in the internal _list, but can be accessed via __getitem__ with either the name or the
+    letter.
     """
-    A set of Dimension objects which MFA arrays are defined over.
-    The objects are stored in the internal _list, but can be accessed via __getitem__ with either the name or the letter.
-    """
+
     dimensions: list[Dimension]
 
     @property
     def _dict(self):
-        """
-        contains mappings
+        """Contains mappings.
 
-        letter --> dim object and
-        name --> dim object
+        letter --> dim object and name --> dim object
         """
         return {dim.name: dim for dim in self.dimensions} | {dim.letter: dim for dim in self.dimensions}
 
@@ -71,9 +69,7 @@ class DimensionSet(PydanticBaseModel):
         return tuple(self.size(key) for key in keys)
 
     def get_subset(self, dims: tuple = None):
-        """
-        returns a copy if dims are not given
-        """
+        """Returns a copy if dims are not given."""
         subset = copy(self)
         if dims is not None:
             subset.dimensions = [self._dict[dim_key] for dim_key in dims]
