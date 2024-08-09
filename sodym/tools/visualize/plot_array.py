@@ -1,116 +1,135 @@
 from matplotlib import pyplot as plt
 import numpy as np
+from pydantic import BaseModel as PydanticBaseModel
 from ...classes.named_dim_arrays import NamedDimArray
+from ...classes.dimensions import DimensionSet
 
 
-def visualize_array(
-    array: NamedDimArray,
-    intra_line_dim,
-    x_array: NamedDimArray = None,
-    tile_dim=None,
-    linecolor_dim=None,
-    slice_dict=None,
-    summed_dims=None,
-    fig_ax=None,
-    title=None,
-    label_in=None,
-):
-    assert not (
-        linecolor_dim is not None and label_in is not None
-    ), "Either dim_lines or label_in can be given, but not both."
+class ArrayPlotter(PydanticBaseModel):
 
-    fig, ax, nx, ny = get_fig_ax(array, tile_dim, fig_ax)
+    array: NamedDimArray
+    intra_line_dim: str
+    x_array: NamedDimArray = None
+    subplot_dim: str = None
+    linecolor_dim: str = None
+    fig_ax: tuple = None
+    line_label: str = None
+    xlabel: str = None
+    ylabel: str = None
 
-    fig.suptitle(title if title is not None else array.name)
+    # TODO: make validator
+    # assert not (
+    #     linecolor_dim is not None and line_label is not None
+    # ), "Either dim_lines or line_label can be given, but not both."
 
-    array_reduced = sum_and_slice(array, slice_dict, summed_dims)
-    arrays_tile = list_of_slices(array_reduced, tile_dim)
+    # TODO: make validator
+    # dims = linecolor_dim + subplot_dim + intra_line_dim should be the same as array.dims.names
+    # should be the same as the dims of the array
+    # x_array should have a subset of the dims of the array
 
-    if x_array is not None:
-        x_array = x_array.cast_to(array.dims)
-        x_array = sum_and_slice(x_array, slice_dict, summed_dims)
-    x_tiles = list_of_slices(x_array, tile_dim, len(arrays_tile))
+    def plot(self, save_path: str=None, do_show: bool = False):
+        self.fill_fig_ax()
+        subplotlist_array, subplotlist_x_array, subplotlist_name = self.prepare_arrays()
+        self.plot_all_subplots(subplotlist_array, subplotlist_x_array, subplotlist_name)
+        self.plot_legend()
+        if save_path is not None:
+            plt.savefig(self.save_path)
+        if do_show:
+            plt.show()
+        return self.fig_ax
 
-    for i_tile, (array_tile, x_tile) in enumerate(zip(arrays_tile, x_tiles)):
-        ax_tile = ax[i_tile // nx, i_tile % nx]
-        item_tile = dim_item_name_by_index(array, tile_dim, i_tile)
-        plot_tile(ax_tile, array_tile, x_tile, intra_line_dim, linecolor_dim, label_in, tile_dim, item_tile)
-    handles, labels = ax[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center")
-    return fig, ax
+    def prepare_arrays(self):
+        self.get_x_array_like_value_array()
+        subplotlist_array, subplotlist_name = list_of_slices(self.array, self.subplot_dim)
+        subplotlist_x_array, _ = list_of_slices(self.x_array, self.subplot_dim)
+        return subplotlist_array, subplotlist_x_array, subplotlist_name
 
+    @property
+    def dims_after_slice(self):
+        original_dims = self.array.dims.letters
+        dims_removed = [d for d, v in self.slice_dict.items() if not isinstance(v, (list, tuple))]
+        return [d for d in original_dims if d not in dims_removed]
 
-def plot_tile(ax_tile, array_tile, x_tile, intra_line_dim, linecolor_dim, label_in, tile_dim, item_tile):
-    if tile_dim is not None:
-        ax_tile.set_title(f"{tile_dim}={item_tile}")
+    @property
+    def dims_after_slice_sum(self):
+        return [d for d in self.dims_after_slice if d not in self.summed_dims]
 
-    arrays_line = list_of_slices(array_tile, linecolor_dim)
-    x_lines = list_of_slices(x_tile, linecolor_dim)
-    for j, (array_line, x_line) in enumerate(zip(arrays_line, x_lines)):
-        label = get_label(array_line, linecolor_dim, j, label_in)
-        assert array_line.dims.names == (intra_line_dim,), (
-            "All dimensions of array must be given exactly once. Either as x_dim / tile_dim / linecolor_dim, or in "
-            "slice_dict or summed_dims."
-        )
-        if x_line is not None:
-            x = x_line.values
-        else:
-            x = array_line.dims[intra_line_dim].items
-        ax_tile.plot(x, array_line.values, label=label)
-    ax_tile.set_xlabel(intra_line_dim)
+    def plot_legend(self):
+        handles, labels = self.ax[0, 0].get_legend_handles_labels()
+        self.fig.legend(handles, labels, loc="lower center")
 
+    def plot_all_subplots(self, subplotlist_array, subplotlist_x_array, subplotlist_name):
+        for i_subplot, (array_subplot, x_array_subplot, name_subplot) in enumerate(zip(subplotlist_array, subplotlist_x_array, subplotlist_name)):
+            i, j = i_subplot // self.nx, i_subplot % self.nx
+            self.plot_subplot( ax=self.ax[i, j], array=array_subplot, x_array=x_array_subplot)
+            self.label_subplot(ax=self.ax[i, j], name_subplot_item=name_subplot)
 
-def dim_item_name_by_index(array: NamedDimArray, dim_name, i_item):
-    if dim_name is None:
-        return None
-    else:
-        return array.dims[dim_name].items[i_item]
-
-
-def sum_and_slice(array: NamedDimArray, slice_dict, summed_dims):
-    array = array.sub_array_handler(slice_dict).to_nda()
-    if summed_dims is not None:
-        array = array.sum_nda_over(summed_dims)
-    return array
-
-
-def list_of_slices(array, dim_to_slice, n_return_none=1):
-    if array is None:
-        return [None] * n_return_none
-    elif dim_to_slice is not None:
-        arrays_tile = [
-            array.sub_array_handler({array.dims[dim_to_slice].letter: item}).to_nda()
-            for item in array.dims[dim_to_slice].items
-        ]
-    else:
-        arrays_tile = [array]
-    return arrays_tile
-
-
-def get_label(array: NamedDimArray, linecolor_dim, j, label_in):
-    if label_in is not None:
-        label = label_in
-    else:
-        label = dim_item_name_by_index(array, linecolor_dim, j)
-    return label
-
-
-def get_fig_ax(array, dim_tiles, fig_ax):
-    if fig_ax is None:
-        if dim_tiles is None:
-            fig, ax = plt.subplots(1, 1, figsize=(10, 9))
+    def fill_fig_ax(self):
+        if self.fig_ax is not None:  # already filled from input argument
+            return
+        if self.subplot_dim is None:
             nx, ny = 1, 1
         else:
-            nx, ny = get_tiles(array, dim_tiles)
-            fig, ax = plt.subplots(nx, ny, figsize=(10, 9))
+            n_subplots = self.array.dims[self.subplot_dim].len
+            nx = int(np.ceil(np.sqrt(n_subplots)))
+            ny = int(np.ceil(n_subplots / nx))
+        self.fig_ax = plt.subplots(nx, ny, figsize=(10, 9))
+
+    def get_x_array_like_value_array(self):
+        if self.x_array is None:
+            x_dim_obj = self.array.dims[self.intra_line_dim]
+            x_dimset = DimensionSet(dimensions=[x_dim_obj])
+            self.x_array = NamedDimArray(dims=x_dimset, values=np.array(x_dim_obj.items), name=self.intra_line_dim)
+        self.x_array = self.x_array.cast_to(self.array.dims)
+
+    @property
+    def fig(self) -> plt.Figure:
+        return self.fig_ax[0]
+
+    @property
+    def ax(self) -> plt.Axes:
+        return self.fig_ax[1]
+
+    @property
+    def nx(self):
+        return self.ax.shape[0]
+
+    @property
+    def ny(self):
+        return self.ax.shape[1]
+
+    def plot_subplot(self, ax: plt.Axes, array: NamedDimArray, x_array: NamedDimArray):
+        linelist_array, linelist_name = list_of_slices(array, self.linecolor_dim)
+        linelist_x_array, _ = list_of_slices(x_array, self.linecolor_dim)
+        for (array_line, x_array_line, name_line) in zip(linelist_array, linelist_x_array, linelist_name):
+            label = self.line_label if self.line_label is not None else name_line
+            assert array_line.dims.names == (self.intra_line_dim,), (
+                "All dimensions of array must be given exactly once. Either as x_dim / subplot_dim / linecolor_dim, or in "
+                "slice_dict or summed_dims."
+            )
+            ax.plot(x_array_line.values, array_line.values, label=label)
+
+    def label_subplot(self, ax: plt.Axes, name_subplot_item: str):
+        if self.subplot_dim is not None:
+            title = f"{self.subplot_dim}={name_subplot_item}"
+            ax.set_title(title)
+        xlabel = self.xlabel if self.xlabel is not None else self.x_array.name
+        if xlabel != "unnamed":
+            ax.set_xlabel(xlabel)
+        ylabel = self.ylabel if self.ylabel is not None else self.array.name
+        if ylabel != "unnamed":
+            ax.set_ylabel(ylabel)
+
+
+def list_of_slices(array: NamedDimArray, dim_name_to_slice) -> tuple[list[NamedDimArray], list[str]]:
+    if dim_name_to_slice is not None:
+        dim_to_slice = array.dims[dim_name_to_slice]
+        list_array = [
+            array[{dim_to_slice.letter: item}]
+            for item in dim_to_slice.items
+        ]
+        list_name = dim_to_slice.items
     else:
-        fig, ax = fig_ax
-        nx, ny = ax.shape
-    return fig, ax, nx, ny
-
-
-def get_tiles(array, dim_tiles):
-    n_tiles = array.dims[dim_tiles].len
-    nx = int(np.ceil(np.sqrt(n_tiles)))
-    ny = int(np.ceil(n_tiles / nx))
-    return nx, ny
+        list_array = [array]
+        list_name = [None]
+    return list_array, list_name

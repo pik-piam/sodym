@@ -32,12 +32,6 @@ def dn(st):
     return display_names[st] if st in display_names else st
 
 
-def show_and_save_pyplot(fig, name):
-    if cfg.do_save_figs:
-        plt.savefig(figure_path(f"{name}.png"))
-    if cfg.do_show_figs:
-        plt.show()
-
 
 def show_and_save_plotly(fig: go.Figure, name):
     if cfg.do_save_figs:
