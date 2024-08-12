@@ -10,7 +10,7 @@ Re-written for use in simson project
 """
 
 import numpy as np
-from pydantic import BaseModel as PydanticBaseModel, ConfigDict
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
 from .dynamic_stock_model import DynamicStockModel
 from .named_dim_arrays import StockArray, Parameter, Process
@@ -31,21 +31,23 @@ class Stock(PydanticBaseModel):
     inflow: StockArray
     outflow: StockArray
     name: str
-    process_name: str
-    process: Optional[Process] = None
+    process_name: Optional[str] = None
+    process: Process
+
+    @model_validator(mode="after")
+    def check_process_names(self):
+        if self.process_name and self.process.name != self.process_name:
+            raise ValueError("Missmatching process names in Stock object")
+        self.process_name = self.process.name
+        return self
 
     @classmethod
-    def from_definition(cls, stock_definition: StockDefinition, parent_alldims: DimensionSet = None):
-        dims = parent_alldims.get_subset(stock_definition.dim_letters)
+    def from_definition(cls, stock_definition: StockDefinition, dims: DimensionSet, process: Process):
         name = stock_definition.name
         stock = StockArray(dims=dims, name=f"{name}_stock")
         inflow = StockArray(dims=dims, name=f"{name}_inflow")
         outflow = StockArray(dims=dims, name=f"{name}_outflow")
-        return cls(name=name, stock=stock, inflow=inflow, outflow=outflow, process_name=stock_definition.process_name)
-
-    def attach_to_process(self, processes: dict):
-        assert self.process_name is not None, "Process name must be set before attaching"
-        self.process = processes[self.process_name]
+        return cls(name=name, stock=stock, inflow=inflow, outflow=outflow, process=process)
 
     @property
     def process_id(self):

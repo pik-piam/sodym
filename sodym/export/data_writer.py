@@ -33,6 +33,15 @@ class DataWriter(PydanticBaseModel):
             df.to_csv(path_out, index=False)
         logging.info(f'Data saved in directory {export_directory}')
 
+    def export_mfa_stocks_to_csv(self, mfa: MFASystem, export_directory: str):
+        if not os.path.exists(export_directory):
+            os.makedirs(export_directory)
+        for stock_name, stock in mfa.stocks.items():
+            df = stock.stock.to_df()
+            path_out = os.path.join(export_directory, f'{stock_name}_stock.csv')
+            df.to_csv(path_out, index=False)
+        logging.info(f'Data saved in directory {export_directory}')
+
     @staticmethod
     def _convert_to_dict(mfa: MFASystem):
         dict_out = {}

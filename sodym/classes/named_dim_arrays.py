@@ -391,35 +391,25 @@ class Flow(NamedDimArray):
     Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
     """
 
-    from_process: Optional[Process] = None
-    to_process: Optional[Process] = None
-    from_process_name: str
-    to_process_name: str
+    from_process: Process
+    to_process: Process
+    from_process_name: Optional[str] = None
+    to_process_name: Optional[str] = None
 
-    # TODO: Define flow by passing process objects, rather than from flow definition.
-
-    @model_validator(mode="before")
-    def check_process_names(v):
-        if "from_process" in v:
-            if v["from_process"].name != v["from_process_name"]:
-                raise ValueError("Missmatching process names in Flow object")
-        if "to_process" in v:
-            if not v["to_process"].name != v["to_process_name"]:
-                raise ValueError("Missmatching process names in Flow object")
-        return v
+    @model_validator(mode="after")
+    def check_process_names(self):
+        if self.from_process_name and self.from_process.name != self.from_process_name:
+            raise ValueError("Missmatching process names in Flow object")
+        self.from_process_name = self.from_process.name
+        if self.to_process_name and self.to_process.name != self.to_process_name:
+            raise ValueError("Missmatching process names in Flow object")
+        self.to_process_name = self.to_process.name
+        return self
 
     @model_validator(mode="after")
     def flow_name_related_to_proccesses(self):
         self.name = f"{self.from_process_name} => {self.to_process_name}"
         return self
-
-    def attach_to_processes(self, processes: dict):
-        """Store links to the Process objects the Flow connects, and their IDs.
-
-        (To set up the links, the names given in the Flow definition dict are used)
-        """
-        self.from_process = processes[self.from_process_name]
-        self.to_process = processes[self.to_process_name]
 
     @property
     def from_process_id(self):

@@ -9,12 +9,12 @@ https://github.com/IndEcol/ODYM
 Re-written for use in simson project
 """
 
-import numpy as np
 from abc import ABC, abstractmethod
-from .mfa_definition import MFADefinition, StockDefinition, DimensionDefinition
-from .named_dim_arrays import Flow, Process, NamedDimArray
-from .stocks_in_mfa import Stock, StockWithDSM
-from .dimensions import Dimension
+import numpy as np
+from typing import Dict
+from .mfa_definition import MFADefinition
+from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
+from .stocks_in_mfa import Stock
 from .data_reader import DataReader
 
 
@@ -29,16 +29,18 @@ class MFASystem(ABC):
     def __init__(self, data_reader: DataReader, model_cfg: dict={}):
         """Define and set up the MFA system and load all required data.
         Does not compute stocks or flows yet."""
-        self.data_reader = data_reader
-        for k, v in model_cfg.items():
+        for k, v in model_cfg.items():  # Allows other model properties to be set as attributes,
+            # which can be acccessed in other class methods.
             setattr(self, k, v)
-        self.set_up_definition()
-        self.set_up_dimensions()
-        self.initialize_processes()
-        self.initialize_flows()
-        self.initialize_stocks()
-        self.initialize_parameters()
-        self.initialize_scalar_parameters()
+        self.definition = self.set_up_definition()
+        self.dims = data_reader.read_dimensions(self.definition.dimensions)
+        self.parameters = self.read_parameters(data_reader=data_reader)
+        self.scalar_parameters = data_reader.read_scalar_data(self.definition.scalar_parameters)
+        self.processes = {
+            name: Process(name=name, id=id) for id, name in enumerate(self.definition.processes)
+        }
+        self.flows = self.initialize_flows(processes=self.processes)
+        self.stocks = self.initialize_stocks(processes=self.processes)
 
     @abstractmethod
     def compute(self):
@@ -46,89 +48,47 @@ class MFASystem(ABC):
         pass
 
     @abstractmethod
-    def set_up_definition(self):
+    def set_up_definition(self) -> MFADefinition:
         """Wrapper for the fill_definition routine defined in the subclass."""
-        self.definition = MFADefinition()
+        pass
 
-    def set_up_dimensions(self):
-        """Given the dimension definition in the subclass, which includes file names for loading of a list of items
-        along each dimension, this function loads a DimensionSet object, which includes loading of the items along each
-        dimension.
+    def initialize_flows(self, processes: Dict[str, Process]) -> Dict[str, Flow]:
+        flows = {}
+        for flow_definition in self.definition.flows:
+            try:
+                from_process = processes[flow_definition.from_process_name]
+                to_process = processes[flow_definition.to_process_name]
+            except KeyError:
+                raise KeyError(f"Missing process required by flow definition {flow_definition}.")
+            dims = self.dims.get_subset(flow_definition.dim_letters)
+            flow = Flow(from_process=from_process, to_process=to_process, dims=dims)
+            flows[flow.name] = flow
+        return flows
 
-        The mandatory Time dimension gets additional special treatment, to handle past and future."""
-        self.dims = self.data_reader.read_dimensions(self.definition.dimensions)
-        self.set_up_years()
+    def initialize_stocks(self, processes: Dict[str, Process]) -> Dict[str, Stock]:
+        stocks = {}
+        for stock_definition in self.definition.stocks:
+            dims = self.dims.get_subset(stock_definition.dim_letters)
+            try:
+                process = processes[stock_definition.process_name]
+            except KeyError:
+                raise KeyError(f"Missing process required by stock definition {stock_definition}.")
+            stock = Stock.from_definition(stock_definition, dims=dims, process=process)
+            stocks[stock.name] = stock
+        return stocks
 
-    def set_up_years(self):
-        """Load historic years from file, and deduct future years as non-historic years from the Time dimension.
-        Get indices for all historic and future years for array slicing."""
-        self.years = self.dims._dict['Time']
-        self.historic_years = self.data_reader.read_dimension(
-            DimensionDefinition(name='Historic Time', dim_letter='h', dtype=int)
-        )
-        future_years = [y for y in self.dims['Time'].items if y not in self.historic_years.items]
-        self.future_years = Dimension(name='future_years', dim_letter='f', items=future_years)
-        self.i_historic = np.arange(self.historic_years.len)
-        self.i_future = np.arange(self.historic_years.len, self.dims["Time"].len)
-
-    def initialize_processes(self):
-        """Convert the process definition list to dict of Process objects, indexed by name."""
-        self.processes = {name: Process(name=name, id=id) for id, name in enumerate(self.definition.processes)}
-
-    def initialize_flows(self):
-        """Convert the flow definition list to dict of Process objects initialized with value 0., indexed by name.
-        Flow names are deducted from the processes they connect."""
-        flow_list = [
-            Flow.from_definition_and_parent_alldims(flow_definition, self.dims)
-            for flow_definition in self.definition.flows
-        ]
-        self.flows = {f.name: f for f in flow_list}
-        for f in self.flows.values():
-            f.attach_to_processes(self.processes)
-
-    def initialize_stocks(self):
-        self.stocks = {sd.name: Stock.from_definition(sd, self.dims) for sd in self.definition.stocks}
-        for s in self.stocks.values():
-            s.attach_to_process(self.processes)
-
-    def initialize_parameters(self):
-        self.parameters = {}
+    def read_parameters(self, data_reader: DataReader) -> Dict[str, Parameter]:
+        parameters = {}
         for parameter in self.definition.parameters:
             dims = self.dims.get_subset(parameter.dim_letters)
-            self.parameters[parameter.name] = self.data_reader.read_parameter_values(
+            parameters[parameter.name] = data_reader.read_parameter_values(
                 parameter=parameter.name, dims=dims
             )
+        return parameters
 
-    def initialize_scalar_parameters(self):
-        self.scalar_parameters = self.data_reader.read_scalar_data(
-            self.definition.scalar_parameters
-        )
-
-    def get_new_stock(self, with_dsm: bool = False, **kwargs):
-        stock_definition = StockDefinition(**kwargs)
-        if with_dsm:
-            return StockWithDSM.from_definition(parent_alldims=self.dims, stock_definition=stock_definition)
-        else:
-            return Stock.from_definition(parent_alldims=self.dims, stock_definition=stock_definition)
-
-    def get_new_array(self, **kwargs):
+    def get_new_array(self, **kwargs) -> NamedDimArray:
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
         return NamedDimArray(dims=dims, **kwargs)
-
-    def get_subset_transformer(self, dim_letters: tuple):
-        """Get a Parameter/NamedDimArray which transforms between two dimensions, one of which is a subset of the
-        other."""
-        assert len(dim_letters) == 2, "Only two dimensions are allowed"
-        dims = self.dims.get_subset(dim_letters)
-        assert set(dims[0].items).issubset(set(dims[1].items)) or set(dims[1].items).issubset(
-            set(dims[0].items)
-        ), f"Dimensions '{dims[0].name}' and '{dims[1].name}' are not subset and superset or vice versa."
-        out = NamedDimArray(name=f"transform_{dims[0].letter}_<->_{dims[1].letter}", dims=dims)
-        # set all values to 1 if first axis item equals second axis item
-        for i, item in enumerate(dims[0].items):
-            if item in dims[1].items:
-                out.values[i, dims[1].index(item)] = 1
-        return out
 
     def get_relative_mass_balance(self):
         """Determines a relative mass balance for each process of the MFA system.
@@ -198,9 +158,3 @@ class MFASystem(ABC):
         else:
             print("Success - Mass balance consistent!")
         return
-
-    @property
-    @abstractmethod
-    def display_names(self):
-        """Dictionary to change the string that variables are displayed with in figures."""
-        return {}
