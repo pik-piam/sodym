@@ -10,7 +10,7 @@ Re-written for use in simson project
 """
 
 from copy import copy
-from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices
+from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
 
 
 class Dimension(PydanticBaseModel):
@@ -41,6 +41,13 @@ class DimensionSet(PydanticBaseModel):
     """
 
     dimensions: list[Dimension]
+
+    @model_validator(mode='after')
+    def no_repeated_dimensions(self):
+        letters = self.letters
+        if len(letters) != len(set(letters)):
+            raise ValueError('Dimensions must have unique letters in DimensionSet.')
+        return self
 
     @property
     def _dict(self):

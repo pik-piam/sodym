@@ -28,9 +28,8 @@ class DataWriter(PydanticBaseModel):
         if not os.path.exists(export_directory):
             os.makedirs(export_directory)
         for flow_name, flow in mfa.flows.items():
-            df = flow.to_df()
             path_out = os.path.join(export_directory, f'{flow_name.replace(" => ", "__2__")}.csv')
-            df.to_csv(path_out, index=False)
+            flow.to_df().to_csv(path_out, index=False)
         logging.info(f'Data saved in directory {export_directory}')
 
     def export_mfa_stocks_to_csv(self, mfa: MFASystem, export_directory: str):
