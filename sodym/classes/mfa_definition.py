@@ -3,7 +3,6 @@ from pydantic import (
     AliasChoices,
     Field,
     field_validator,
-    model_validator,
 )
 from typing import List, Optional
 
@@ -11,16 +10,7 @@ from typing import List, Optional
 class DimensionDefinition(PydanticBaseModel):
     name: str = Field(..., min_length=2)
     letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter"))
-    filename: Optional[str] = None
     dtype: type
-
-    @model_validator(mode="after")
-    def fill_filename_with_name(self):
-        if not self.filename:
-            self.filename = self.name
-        return self
-
-    # check file exists? or remove from definition and handle elsewhere
 
 
 class DefinitionWithDimLetters(PydanticBaseModel):

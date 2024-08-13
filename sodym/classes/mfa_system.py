@@ -12,10 +12,10 @@ Re-written for use in simson project
 import numpy as np
 from abc import ABC, abstractmethod
 from .mfa_definition import MFADefinition, StockDefinition, DimensionDefinition
-from .named_dim_arrays import Flow, Parameter, Process, NamedDimArray
+from .named_dim_arrays import Flow, Process, NamedDimArray
 from .stocks_in_mfa import Stock, StockWithDSM
-from .dimensions import Dimension, DimensionSet
-from ..tools.read_data import read_scalar_data, read_data_to_df, get_np_from_df
+from .dimensions import Dimension
+from .data_reader import DataReader
 
 
 class MFASystem(ABC):
@@ -26,9 +26,12 @@ class MFASystem(ABC):
     MFA flows, stocks and parameters are defined as instances of subclasses of NamedDimArray. Dimensions are managed
     with the Dimension and DimensionSet . Please refer to these classes for further information."""
 
-    def __init__(self):
+    def __init__(self, data_reader: DataReader, model_cfg: dict={}):
         """Define and set up the MFA system and load all required data.
         Does not compute stocks or flows yet."""
+        self.data_reader = data_reader
+        for k, v in model_cfg.items():
+            setattr(self, k, v)
         self.set_up_definition()
         self.set_up_dimensions()
         self.initialize_processes()
@@ -53,18 +56,18 @@ class MFASystem(ABC):
         dimension.
 
         The mandatory Time dimension gets additional special treatment, to handle past and future."""
-        self.dims = DimensionSet.from_files(arg_dicts_for_dim_constructors=self.definition.dimensions)
+        self.dims = self.data_reader.read_dimensions(self.definition.dimensions)
         self.set_up_years()
 
     def set_up_years(self):
         """Load historic years from file, and deduct future years as non-historic years from the Time dimension.
         Get indices for all historic and future years for array slicing."""
-        self.years = self.dims._dict["Time"]
-        self.historic_years = Dimension.from_file(
-            DimensionDefinition(name="historic_years", dim_letter="h", filename="historic_years", dtype=int)
+        self.years = self.dims._dict['Time']
+        self.historic_years = self.data_reader.read_dimension(
+            DimensionDefinition(name='Historic Time', dim_letter='h', dtype=int)
         )
-        future_years = [y for y in self.dims["Time"].items if y not in self.historic_years.items]
-        self.future_years = Dimension(name="future_years", dim_letter="f", items=future_years)
+        future_years = [y for y in self.dims['Time'].items if y not in self.historic_years.items]
+        self.future_years = Dimension(name='future_years', dim_letter='f', items=future_years)
         self.i_historic = np.arange(self.historic_years.len)
         self.i_future = np.arange(self.historic_years.len, self.dims["Time"].len)
 
@@ -92,14 +95,14 @@ class MFASystem(ABC):
         self.parameters = {}
         for parameter in self.definition.parameters:
             dims = self.dims.get_subset(parameter.dim_letters)
-            data = read_data_to_df(type="dataset", name=parameter.name)
-            values = get_np_from_df(data, dims.names)
-            self.parameters[parameter.name] = Parameter(dims=dims, values=values)
+            self.parameters[parameter.name] = self.data_reader.read_parameter_values(
+                parameter=parameter.name, dims=dims
+            )
 
     def initialize_scalar_parameters(self):
-        self.scalar_parameters = {
-            spd["name"]: read_scalar_data(spd["name"]) for spd in self.definition.scalar_parameters
-        }
+        self.scalar_parameters = self.data_reader.read_scalar_data(
+            self.definition.scalar_parameters
+        )
 
     def get_new_stock(self, with_dsm: bool = False, **kwargs):
         stock_definition = StockDefinition(**kwargs)

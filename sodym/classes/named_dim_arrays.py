@@ -113,17 +113,21 @@ class NamedDimArray(PydanticBaseModel):
         return values
 
     def cast_to(self, target_dims: DimensionSet):
-        return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims))
+        return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims), name=self.name)
 
     def sum_values_to(self, result_dims: tuple = ()):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):
-        return NamedDimArray(dims=self.dims.get_subset(result_dims), values=self.sum_values_to(result_dims))
+        return NamedDimArray(
+            dims=self.dims.get_subset(result_dims), values=self.sum_values_to(result_dims), name=self.name
+        )
 
     def sum_nda_over(self, sum_over_dims: tuple = ()):
         result_dims = tuple([d for d in self.dims.letters if d not in sum_over_dims])
-        return NamedDimArray(dims=self.dims.get_subset(result_dims), values=self.sum_values_over(sum_over_dims))
+        return NamedDimArray(
+            dims=self.dims.get_subset(result_dims), values=self.sum_values_over(sum_over_dims), name=self.name
+        )
 
     def _prepare_other(self, other):
         assert isinstance(other, (NamedDimArray, int, float)), (
@@ -333,7 +337,7 @@ class SubArrayHandler:
             not self.has_dim_with_several_items
         ), "Cannot convert to NamedDimArray if there are dimensions with several items"
         dims = self.nda.dims.get_subset(self.dim_letters)
-        return NamedDimArray(dims=dims, values=self.values_pointer)
+        return NamedDimArray(dims=dims, values=self.values_pointer, name=self.nda.name)
 
     def _init_ids(self):
         """
