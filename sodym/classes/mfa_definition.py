@@ -1,8 +1,10 @@
+import numpy as np
 from pydantic import (
     BaseModel as PydanticBaseModel,
     AliasChoices,
     Field,
     field_validator,
+    model_validator
 )
 from typing import List, Optional
 
@@ -47,3 +49,12 @@ class MFADefinition(PydanticBaseModel):
     stocks: List[StockDefinition]
     parameters: List[ParameterDefinition]
     scalar_parameters: Optional[list] = []
+
+    @model_validator(mode='after')
+    def check_dimension_letters(self):
+        defined_dim_letters = [dd.letter for dd in self.dimensions]
+        for item in self.flows + self.stocks + self.parameters:
+            correct_dims = [letter in defined_dim_letters for letter in item.dim_letters]
+            if not np.all(correct_dims):
+                raise ValueError(f'Undefined dimension in {item}')
+        return self
