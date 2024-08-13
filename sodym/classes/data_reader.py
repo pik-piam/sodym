@@ -30,16 +30,13 @@ class DataReader(ABC):
 
 class ExampleDataReader(DataReader):
     def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
-        self.scalar_data_yaml = scalar_data_yaml  # file_name
-        self.parameter_datasets = parameter_datasets  # {parameter_name: file_name, ...}
-        self.dimension_datasets = dimension_datasets  # {dimension_name: file_name, ...}
+        self.scalar_data_yaml = scalar_data_yaml  # file_path
+        self.parameter_datasets = parameter_datasets  # {parameter_name: file_path, ...}
+        self.dimension_datasets = dimension_datasets  # {dimension_name: file_path, ...}
 
     def read_scalar_data(self, parameters: List[str]):
-        try:
-            with open(self.scalar_data_yaml, 'r') as stream:
-                data = yaml.safe_load(stream)
-        except FileNotFoundError:
-            return {}
+        with open(self.scalar_data_yaml, 'r') as stream:
+            data = yaml.safe_load(stream)
         return {name: data[name] for name in data if name in parameters}
 
     def read_parameter_values(self, parameter: str, dims):
