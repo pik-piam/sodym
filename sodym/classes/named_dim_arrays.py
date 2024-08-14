@@ -390,6 +390,7 @@ class Flow(NamedDimArray):
 
     Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
     """
+    model_config = ConfigDict(protected_namespaces=())
 
     from_process: Process
     to_process: Process

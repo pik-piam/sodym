@@ -26,6 +26,7 @@ class Stock(PydanticBaseModel):
     The base class only allows to compute the stock from known inflow and outflow.
     The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both
     inflow and outflow are known."""
+    model_config = ConfigDict(protected_namespaces=())
 
     stock: StockArray
     inflow: StockArray
@@ -64,7 +65,7 @@ class StockWithDSM(Stock):
     which contains the number crunching and takes numpy arrays as input.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     dsm: Optional[DynamicStockModel] = None
     ldf_type: Optional[str] = None

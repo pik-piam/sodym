@@ -4,18 +4,23 @@ from pydantic import (
     AliasChoices,
     Field,
     field_validator,
-    model_validator
+    model_validator,
+    ConfigDict,
 )
 from typing import List, Optional
 
 
 class DimensionDefinition(PydanticBaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     name: str = Field(..., min_length=2)
     letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter"))
     dtype: type
 
 
 class DefinitionWithDimLetters(PydanticBaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     dim_letters: tuple
 
     @field_validator("dim_letters", mode="before")
@@ -42,6 +47,7 @@ class ParameterDefinition(DefinitionWithDimLetters):
 
 class MFADefinition(PydanticBaseModel):
     """All the information needed to define an MFA system."""
+    model_config = ConfigDict(protected_namespaces=())
 
     dimensions: List[DimensionDefinition]
     processes: List[str]
