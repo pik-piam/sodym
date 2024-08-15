@@ -1,10 +1,7 @@
 Parameters, Processes and Flows
 -------------------------------
-.. automodule:: sodym.classes.named_dim_arrays
+.. automodule:: sodym.named_dim_arrays
+   :inherited-members: BaseModel
 
 .. autosummary::
    :toctree: _autosummary
-
-   Parameter
-   Process
-   Flow

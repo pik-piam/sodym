@@ -1,6 +1,6 @@
-SODYM Dimensions
+Dimensions
 ----------------
-.. automodule:: sodym.classes.dimensions
+.. automodule:: sodym.dimensions
 
 .. autosummary::
    :toctree: _autosummary

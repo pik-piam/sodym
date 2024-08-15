@@ -1,16 +1,18 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
-from typing import List
+from typing import List, Dict
 import yaml
 
 from .named_dim_arrays import Parameter
-from .mfa_definition import DimensionDefinition
+from .mfa_definition import DimensionDefinition, ParameterDefinition
 from .dimensions import DimensionSet, Dimension
 
 
 class DataReader(ABC):
-
+    """Template for creating a data reader, showing required methods and data formats needed for
+    use in the MFASystem model.
+    """
     def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
         dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
         return DimensionSet(dimensions=dimensions)
@@ -27,8 +29,34 @@ class DataReader(ABC):
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
         pass
 
+    def read_parameters(self, parameters: List[ParameterDefinition], dims: DimensionSet
+                        ) -> Dict[str, Parameter]:
+        parameters = {}
+        for parameter in parameters:
+            dims = dims.get_subset(parameter.dim_letters)
+            parameters[parameter.name] = self.read_parameter_values(
+                parameter=parameter.name, dims=dims
+            )
+        return parameters
+
 
 class ExampleDataReader(DataReader):
+    """Example data reader, that reads .csv files for parameters and dimensions, and a yaml file
+    for scalar parameter data. File locations need to be specified on initialization.
+
+    **Example**
+
+        >>> from sodym import ExampleDataReader, DimensionDefinition
+        >>> time_definition = DimensionDefinition(name='time', letter='t', dtype=int)
+        >>> dimension_datasets = {
+        >>>     'time': 'path/to/file_with_list_of_times.csv',
+        >>>     'place': 'path/to/file_with_list_of_places.csv',
+        >>>     ...
+        >>> }
+        >>> data_reader = ExampleDataReader(dimension_datasets=dimension_datasets, ...)
+        >>> time_dimension = data_reader.read_dimension(definition=time_definition)
+
+    """
     def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
         self.scalar_data_yaml = scalar_data_yaml  # file_name
         self.parameter_datasets = parameter_datasets  # {parameter_name: file_name, ...}

@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 from pydantic import BaseModel as PydanticBaseModel
 
-from ..classes.mfa_system import MFASystem
+from ..mfa_system import MFASystem
 
 
 class DataWriter(PydanticBaseModel):

@@ -1,14 +1,3 @@
-"""
-Adapted from:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Adapted for use in the simson project
-"""
-
 import numpy as np
 import scipy.stats
 

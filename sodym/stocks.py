@@ -1,14 +1,3 @@
-"""
-Concepts based on:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Re-written for use in simson project
-"""
-
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional

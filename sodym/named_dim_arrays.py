@@ -1,14 +1,3 @@
-"""
-Concepts based on:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Re-written for use in simson project
-"""
-
 from copy import copy
 import numpy as np
 import pandas as pd
@@ -20,7 +9,7 @@ from .mfa_definition import DefinitionWithDimLetters
 
 
 class NamedDimArray(PydanticBaseModel):
-    """ "Parent class for an array with pre-defined dimensions, which are addressed by name. Operations between
+    """Parent class for an array with pre-defined dimensions, which are addressed by name. Operations between
     different multi-dimensional arrays can than be performed conveniently, as the dimensions are automatically matched.
 
     In order to 'fix' the dimensions of the array, the array has to be 'declared' by calling the NamedDimArray object
@@ -50,7 +39,7 @@ class NamedDimArray(PydanticBaseModel):
 
     The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     dims: DimensionSet
     values: Optional[np.ndarray] = None
@@ -74,10 +63,14 @@ class NamedDimArray(PydanticBaseModel):
         cls, parent_alldims: DimensionSet, name: str = "unnamed", dim_letters: tuple = None, values: np.ndarray = None
     ):
         """
-        - dimensions are set in the form of a DimensionSet object, which is derived as a subset from a parent
-          DimensionSet object.
-        - values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only
-          computed later) or otherwise are filled with zeros
+        Parameters:
+            parent_alldims: DimensionSet from which the objects dimensions are derived
+            dim_letters: specify which dimensions to take from parent_alldims
+            values: can be initialized directly, or otherwise are filled with zeros
+            name: property of the cls instance being created
+
+        Returns:
+            cls instance
         """
         dims = parent_alldims.get_subset(dim_letters)
         return cls(dims=dims, name=name, values=values)
@@ -368,8 +361,8 @@ class Process(PydanticBaseModel):
     """Processes serve as nodes for the MFA system layout definition. Flows are defined between two processes. Stocks
     are connected to a process. Processes do not contain values themselves.
 
-    Processes get an ID by the order they are defined in  in the MFA system definition. The process with ID 0
-    necessarily contains everything outside the system boundary.
+    Processes get an ID by the order they are defined in the :py:attribute:`MFASystem.definition`.
+    The process with ID 0 necessarily contains everything outside the system boundary.
     """
 
     name: str
@@ -385,10 +378,11 @@ class Process(PydanticBaseModel):
 
 
 class Flow(NamedDimArray):
-    """The values of Flow objects are the main computed outcome of the MFA system. A flow connects two processes. Its
-    name is set as a combination of the names of the two processes it connects.
+    """The values of Flow objects are the main computed outcome of the MFA system.
+    A Flow object connects two :py:class:`Process` objects.
+    The name of the Flow object is set as a combination of the names of the two processes it connects.
 
-    Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
+    Flow is a subclass of :py:class:`NamedDimArray`, so most of its methods are inherited.
     """
     model_config = ConfigDict(protected_namespaces=())
 
@@ -424,17 +418,18 @@ class Flow(NamedDimArray):
 class StockArray(NamedDimArray):
     """Stocks allow accumulation of material at a process, i.e. between two flows.
 
-    As Stock contains NamedDimArrays for its stock value, inflow and outflow. For details, see the Stock class.
+    StockArray inherits all its functionality from :py:class:`NamedDimArray`.
+    StockArray's are used in the :py:class:`sodym.stocks.Stock` for the inflow, outflow and stock.
     """
-
     pass
 
 
 class Parameter(NamedDimArray):
-    """Parameters are used for example to define the share of flows that go into one branch when the flow splits at a
-    process.
+    """Parameter's can be used when defining the :py:meth:`sodym.mfa_system.MFASystem.compute` of a specific MFA system,
+    to quantify the links between specific :py:class:`sodym.stocks.Stock` and :py:class:`Flow` objects,
+    for example as the share of flows that go into one branch when the flow splits at a process.
 
-    All methods are defined in the NamedDimArray parent class.
+    Parameter inherits all its functionality from :py:class:`NamedDimArray`.
     """
 
     pass

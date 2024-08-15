@@ -1,6 +1,12 @@
 # sodym
 The sodym package provides key functionality for material flow analysis, with the class `MFASystem` acting as a template (parent class) for users to create their own material flow models.
 
+The concepts used in sodym are based on:
+ODYM
+Copyright (c) 2018 Industrial Ecology
+author: Stefan Pauliuk, Uni Freiburg, Germany
+https://github.com/IndEcol/ODYM
+
 ## Install
 Clone the sodym repository using git. Activate the virtual environment and install poetry, and then run 'python -m poetry install' to obtain all the necessary dependencies.
 

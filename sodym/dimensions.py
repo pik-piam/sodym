@@ -1,14 +1,3 @@
-"""
-Concepts based on:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Re-written for use in simson project
-"""
-
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
 
@@ -16,8 +5,9 @@ from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_
 class Dimension(PydanticBaseModel):
     """One of multiple dimensions over which MFA arrays are defined.
 
-    Defined by a name, a letter for shorter addressing, and a list of items. For example, the dimension 'Region' could
-    have letter 'r' and a country list as items. The list of items can be loaded from a csv file, or set directly, for
+    Defined by a name, a letter for shorter addressing, and a list of items.
+    For example, the dimension 'Region' could have letter 'r' and a country list as items.
+    The list of items can be loaded using a :py:class:`sodym.data_reader.DataReader` object, or set directly, for
     example if a subset of an existing dimension is formed.
     """
 
@@ -34,11 +24,7 @@ class Dimension(PydanticBaseModel):
 
 
 class DimensionSet(PydanticBaseModel):
-    """A set of Dimension objects which MFA arrays are defined over.
-
-    The objects are stored in the internal _list, but can be accessed via __getitem__ with either the name or the
-    letter.
-    """
+    """A set of Dimension objects which MFA arrays are defined over."""
 
     dimensions: list[Dimension]
 

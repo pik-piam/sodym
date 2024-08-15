@@ -8,25 +8,27 @@ SODYM documentation
 
 The sodym package provides key functionality for material flow analysis, with the class `MFASystem` acting as a template (parent class) for users to create their own material flow models.
 
-.. toctree::
-   :maxdepth: 1
+| The concepts behind sodym are based on:
+| ODYM
+| Copyright (c) 2018 Industrial Ecology
+| author: Stefan Pauliuk, Uni Freiburg, Germany
+| https://github.com/IndEcol/ODYM
 
-   sodym.classes.mfa_definition
-   sodym.classes.mfa_system
-
-Model attributes
+Model components
 ----------------
 .. toctree::
    :maxdepth: 1
 
-   sodym.classes.dimension
-   sodym.classes.named_dim_arrays
-   sodym.classes.stocks_in_mfa
+   sodym.mfa_definition
+   sodym.data_reader
+   sodym.dimension
+   sodym.named_dim_arrays
+   sodym.stocks
+   sodym.mfa_system
 
-Data reading and writing
-------------------------
+Data writing and plotting
+-------------------------
 .. toctree::
    :maxdepth: 1
 
-   sodym.classes.data_reader
    sodym.export.data_writer

@@ -1,30 +1,38 @@
-"""
-Concepts based on:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Re-written for use in simson project
-"""
-
 from abc import ABC, abstractmethod
 import numpy as np
 from typing import Dict
 from .mfa_definition import MFADefinition
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
-from .stocks_in_mfa import Stock
+from .stocks import Stock
 from .data_reader import DataReader
 
 
 class MFASystem(ABC):
     """An MFASystem class handles the definition, setup and calculation of a Material Flow Analysis system, which
-    consists of a set of processes, flows, stocks defined over a set of dimensions. For the concrete definition of the
-    system, a subclass of MFASystem must be implemented.
+    consists of a set of processes, flows, stocks defined over a set of dimensions. 
+    For the concrete definition of the system, a subclass of MFASystem must be implemented.
 
-    MFA flows, stocks and parameters are defined as instances of subclasses of NamedDimArray. Dimensions are managed
-    with the Dimension and DimensionSet . Please refer to these classes for further information."""
+    **Example**
+
+    Define your MFA System:
+
+    >>> from sodym import MFASystem
+    >>> class CustomMFA(MFASystem):
+    >>>     def set_up_definition(self) -> MFADefinition:
+    >>>         # define the model here
+    >>>     def compute(self):
+    >>>         # do some computations on the CustomMFA attributes: stocks and flows
+
+    Initialize and run your MFA System model:
+
+    >>> from sodym import ExampleDataReader
+    >>> data_reader = ExampleDataReader(...)
+    >>> mfa = MFASystem(data_reader=data_reader)
+    >>> mfa.compute()
+
+    MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
+    Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
+    """
 
     def __init__(self, data_reader: DataReader, model_cfg: dict={}):
         """Define and set up the MFA system and load all required data.
@@ -53,6 +61,7 @@ class MFASystem(ABC):
         pass
 
     def initialize_flows(self, processes: Dict[str, Process]) -> Dict[str, Flow]:
+        """Initialize all defined flows with zero values."""
         flows = {}
         for flow_definition in self.definition.flows:
             try:
@@ -66,6 +75,7 @@ class MFASystem(ABC):
         return flows
 
     def initialize_stocks(self, processes: Dict[str, Process]) -> Dict[str, Stock]:
+        """Initialize all defined stocks with zero values."""
         stocks = {}
         for stock_definition in self.definition.stocks:
             dims = self.dims.get_subset(stock_definition.dim_letters)
@@ -78,6 +88,8 @@ class MFASystem(ABC):
         return stocks
 
     def read_parameters(self, data_reader: DataReader) -> Dict[str, Parameter]:
+        """Use the data_reader (DataReader object) to obtain data for all the parameters
+        in the MFA system definition."""
         parameters = {}
         for parameter in self.definition.parameters:
             dims = self.dims.get_subset(parameter.dim_letters)

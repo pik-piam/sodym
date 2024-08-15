@@ -1,6 +1,6 @@
 Data reading
 ------------
-.. automodule:: sodym.classes.data_reader
+.. automodule:: sodym.data_reader
 
 .. autosummary::
    :toctree: _autosummary

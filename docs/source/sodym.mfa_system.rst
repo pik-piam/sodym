@@ -1,6 +1,6 @@
 MFA System
 ----------
-.. automodule:: sodym.classes.mfa_system
+.. automodule:: sodym.mfa_system
 
 .. autosummary::
    :toctree: _autosummary
