@@ -37,7 +37,7 @@ class NamedDimArray(PydanticBaseModel):
     foo[keys] = bar or foo = bar[keys]. For details on the allowed values of 'keys', see the docstring of the
     SubArrayHandler class.
 
-    The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute."""
+    The dimensions of a NamedDimArray stored as a :py:class:`sodym.dimensions.DimensionSet` object in the 'dims' attribute."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
@@ -108,7 +108,7 @@ class NamedDimArray(PydanticBaseModel):
     def cast_to(self, target_dims: DimensionSet):
         return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims), name=self.name)
 
-    def sum_values_to(self, result_dims: tuple = ()):
+    def sum_values_to(self, result_dims: tuple[str] = ()):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):

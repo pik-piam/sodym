@@ -8,13 +8,13 @@ from .mfa_definition import StockDefinition
 
 
 class Stock(PydanticBaseModel):
-    """
-    Stock objects are components of an MFASystem, where materials can accumulate over time.
-    They consist of three NamedDimArrays: stock (the accumulation), inflow, outflow.
+    """Stock objects are components of an MFASystem, where materials can accumulate over time.
+    They consist of three :py:class:`sodym.named_dim_arrays.NamedDimArrays` : stock (the accumulation), inflow, outflow.
 
     The base class only allows to compute the stock from known inflow and outflow.
     The subclass StockWithDSM allows computations using a lifetime distribution function, which is necessary if not both
-    inflow and outflow are known."""
+    inflow and outflow are known.
+    """
     model_config = ConfigDict(protected_namespaces=())
 
     stock: StockArray
