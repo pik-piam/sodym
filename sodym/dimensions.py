@@ -1,14 +1,20 @@
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
+from typing import Dict
 
 
 class Dimension(PydanticBaseModel):
     """One of multiple dimensions over which MFA arrays are defined.
 
     Defined by a name, a letter for shorter addressing, and a list of items.
-    For example, the dimension 'Region' could have letter 'r' and a country list as items.
-    The list of items can be loaded using a :py:class:`sodym.data_reader.DataReader` object, or set directly, for
-    example if a subset of an existing dimension is formed.
+
+    **Example**
+
+        >>> from sodym import Dimension
+        >>> regions = Dimension(name='Region', letter='r', items=['Earth', 'Moon', 'Sun'])
+
+    The list of items can be loaded using a :py:class:`sodym.data_reader.DataReader` object,
+    or set directly, for example if a subset of an existing dimension is formed.
     """
 
     name: str = Field(..., min_length=2)
@@ -16,15 +22,40 @@ class Dimension(PydanticBaseModel):
     items: list
 
     @property
-    def len(self):
+    def len(self) -> int:
         return len(self.items)
 
-    def index(self, item):
+    def index(self, item) -> int:
         return self.items.index(item)
 
 
 class DimensionSet(PydanticBaseModel):
-    """A set of Dimension objects which MFA arrays are defined over."""
+    """A set of Dimension objects which MFA arrays are defined over.
+
+    **Example**
+
+        >>> from sodym import Dimension, DimensionSet
+        >>> regions = Dimension(name='Region', letter='r', items=['Earth', 'Moon', 'Sun'])
+        >>> time = Dimension(name='Time', letter='t', items=[1990, 2000, 2010, 2020, 2030])
+        >>> dimensions = DimensionSet([regions, time])
+
+    It is expected that DimensionSet instances are created via the :py:class:`sodym.data_reader.DataReader`.
+
+        >>> from sodym import DataReader, DimensionDefinition, Dimension
+        >>> class MyDataReader(DataReader):
+        >>>    def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+        >>>        if dimension_definition.letter == 't':
+        >>>            return Dimension(name='Time', letter='t', items=[1990, 2000, 2010, 2020, 2030])
+        >>>        elif dimension_definition.letter == 'r':
+        >>>            return Dimension(name='Region', letter='r', items=['Earth', 'Moon', 'Sun'])
+        >>>        raise ValueError('No data available for desired dimension')
+        >>> data_reader = MyDataReader()
+        >>> time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
+        >>> region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
+        >>> definitions = [time_definition, region_definition]
+        >>> dimensions = data_reader.read_dimensions(dimension_definitions=definitions)
+
+    """
 
     dimensions: list[Dimension]
 
@@ -36,14 +67,14 @@ class DimensionSet(PydanticBaseModel):
         return self
 
     @property
-    def _dict(self):
+    def _dict(self) -> Dict[str, Dimension]:
         """Contains mappings.
 
         letter --> dim object and name --> dim object
         """
         return {dim.name: dim for dim in self.dimensions} | {dim.letter: dim for dim in self.dimensions}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Dimension:
         if isinstance(key, str):
             return self._dict[key]
         elif isinstance(key, int):
@@ -61,8 +92,11 @@ class DimensionSet(PydanticBaseModel):
         keys = keys if keys else self.letters
         return tuple(self.size(key) for key in keys)
 
-    def get_subset(self, dims: tuple = None):
-        """Returns a copy if dims are not given."""
+    def get_subset(self, dims: tuple = None) -> 'DimensionSet':
+        """Selects :py:class:`Dimension` objects from the object attribute dimensions,
+        according to the dims passed, which can be either letters or names.
+        Returns a copy if dims are not given.
+        """
         subset = copy(self)
         if dims is not None:
             subset.dimensions = [self._dict[dim_key] for dim_key in dims]

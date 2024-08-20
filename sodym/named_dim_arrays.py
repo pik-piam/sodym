@@ -321,7 +321,7 @@ class SubArrayHandler:
         letters_removed = [d for d, items in self.def_dict.items() if isinstance(items, str)]
         return tuple([d for d in all_letters if d not in letters_removed])
 
-    def to_nda(self):
+    def to_nda(self) -> 'NamedDimArray':
         """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
 
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
@@ -358,8 +358,9 @@ class SubArrayHandler:
 
 
 class Process(PydanticBaseModel):
-    """Processes serve as nodes for the MFA system layout definition. Flows are defined between two processes. Stocks
-    are connected to a process. Processes do not contain values themselves.
+    """Processes serve as nodes for the MFA system layout definition.
+    Flows are defined between two processes. Stocks are connected to a process.
+    Processes do not contain values themselves.
 
     Processes get an ID by the order they are defined in the :py:attribute:`MFASystem.definition`.
     The process with ID 0 necessarily contains everything outside the system boundary.
@@ -383,6 +384,20 @@ class Flow(NamedDimArray):
     The name of the Flow object is set as a combination of the names of the two processes it connects.
 
     Flow is a subclass of :py:class:`NamedDimArray`, so most of its methods are inherited.
+
+    **Example**
+
+    >>> from sodym import DimensionSet, Flow, Process
+    >>> goods = Dimension(name='Good', letter='g', items=['Car', 'Bus', 'Bicycle'])
+    >>> time = Dimension(name='Time', letter='t', items=[1990, 2000, 2010, 2020, 2030])
+    >>> dimensions = DimensionSet([goods, time])
+    >>> fabrication = Process(name='fabrication', id=2)
+    >>> use = Process(name='use', id=3)
+    >>> flow = Flow(from_process='fabrication', to_process='use', dims=dimensions)
+
+    In the above example, we did not pass any values when initialising the Flow instance,
+    and these would get filled with zeros.
+    See the validation (filling) method in :py:class:`NamedDimArray`.
     """
     model_config = ConfigDict(protected_namespaces=())
 
@@ -431,5 +446,4 @@ class Parameter(NamedDimArray):
 
     Parameter inherits all its functionality from :py:class:`NamedDimArray`.
     """
-
     pass

@@ -11,6 +11,26 @@ from typing import List, Optional
 
 
 class DimensionDefinition(PydanticBaseModel):
+    """Define the model dimensions.
+
+    **Examples**
+
+    >>> from sodym import DimensionDefinition
+    >>> time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
+    >>> region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
+
+    These are then used in the :py:class:MFADefinition, for creating a custom MFA System.
+
+    >>> from sodym import MFASystem, MFADefinition
+    >>> class CustomMFA(MFASystem):
+    >>>     def set_up_definition(self) -> MFADefinition:
+    >>>         time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
+    >>>         region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
+    >>>         dimension_definitions = [time_definition, region_definition]
+    >>>         mfa_definition = MFADefinition(dimensions=dimension_definitions, processes=..., ...)
+    >>>         return mfa_definition
+
+    """
     model_config = ConfigDict(protected_namespaces=())
 
     name: str = Field(..., min_length=2)
@@ -32,6 +52,17 @@ class DefinitionWithDimLetters(PydanticBaseModel):
 
 
 class FlowDefinition(DefinitionWithDimLetters):
+    """Define the model flows.
+
+    **Examples**
+
+    >>> from sodym import FlowDefinition
+    >>> flow_one = FlowDefinition(from_process_name='fabrication', to_process_name='use', dim_letters=('r', 't'))
+    >>> flow_two = FlowDefinition(from_process_name='use', to_process_name='end_of_life', dim_letters=('r', 't'))
+
+    These are then used in the :py:class:MFADefinition, for creating a custom MFA System.
+    """
+
     from_process_name: str = Field(validation_alias=AliasChoices("from_process_name", "from_process"))
     to_process_name: str = Field(validation_alias=AliasChoices("to_process_name", "to_process"))
 

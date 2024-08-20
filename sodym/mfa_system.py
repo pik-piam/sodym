@@ -57,7 +57,7 @@ class MFASystem(ABC):
 
     @abstractmethod
     def set_up_definition(self) -> MFADefinition:
-        """Wrapper for the fill_definition routine defined in the subclass."""
+        """The MFADefinition must be specified in the subclass."""
         pass
 
     def initialize_flows(self, processes: Dict[str, Process]) -> Dict[str, Flow]:
