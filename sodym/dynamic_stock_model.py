@@ -1,43 +1,29 @@
+from abc import ABC, abstractmethod
+import logging
 import numpy as np
 import scipy.stats
 
 
-class DynamicStockModel(object):
+class DynamicStockModel(ABC):
     def __init__(
         self,
         shape,
-        inflow=None,
-        outflow=None,
-        stock=None,
-        ldf_type=None,
+        ldf_type,
         lifetime_mean=None,
         lifetime_std=None,
-        lifetime_shape=None,
-        lifetime_scale=None,
-        stock_by_cohort=None,
-        outflow_by_cohort=None,
-        sf=None,
     ):
         self.shape = tuple(shape)
         self.n_t = list(shape)[0]
         self.shape_cohort = (self.n_t,) + self.shape
         self.shape_no_t = tuple(list(self.shape)[1:])
-
-        self.inflow = inflow
-        self.stock = stock
         self.dsdt = None
-        self.stock_by_cohort = stock_by_cohort
-        self.outflow = outflow
-        self.outflow_by_cohort = outflow_by_cohort
-
         self.ldf_type = ldf_type
         self.lifetime_mean = lifetime_mean
         self.lifetime_std = lifetime_std
-        self.lifetime_shape = lifetime_shape
-        self.lifetime_scale = lifetime_scale
 
-        self.sf = sf
-        return
+    @abstractmethod
+    def compute():
+        pass
 
     def tile(self, a: np.ndarray) -> np.ndarray:
         index = (slice(None),) * a.ndim + (np.newaxis,) * len(self.shape_no_t)
@@ -47,64 +33,6 @@ class DynamicStockModel(object):
     @property
     def t_diag_indices(self):
         return np.diag_indices(self.n_t) + (slice(None),) * len(self.shape_no_t)
-
-    # THEORY:
-    # six quantities: i, o, s, sc, oc, lt
-
-    def compute_stock_driven(self):
-        assert self.stock is not None, "Stock must be specified."
-        self.compute_s_lt__2__sc_oc_i()
-        self.compute_oc__2__o()
-        self.check_stock_balance()
-
-    def compute_inflow_driven(self):
-        assert self.inflow is not None, "Inflow must be specified."
-        self.compute_i_lt__2__sc()
-        self.compute_sc__2__oc()
-        self.compute_sc__2__s()
-        self.compute_oc__2__o()
-        self.check_stock_balance()
-
-    def compute_simple_stock(self):
-        self.compute_i_o__2__s()
-
-    def compute_i_o__2__s(self):
-        """Compute stock from inflow and outflow via mass balance."""
-        self.stock = np.cumsum(self.inflow - self.outflow, axis=0)
-        return self.stock
-
-    def compute_s__2__dsdt(self):
-        """Determine stock change from time series for stock.
-        Formula: stock_change(t) = stock(t) - stock(t-1).
-        """
-        if self.dsdt is None:
-            self.dsdt = np.diff(self.stock, axis=0, prepend=0)
-        return self.dsdt
-
-    def compute_sc__2__s(self):
-        """Determine total stock as row sum of cohort-specific stock."""
-        self.stock = self.stock_by_cohort.sum(axis=1)
-        return self.stock
-
-    def compute_oc__2__o(self):
-        """Determine total outflow as row sum of cohort-specific outflow."""
-        self.outflow = self.outflow_by_cohort.sum(axis=1)
-        return self.outflow
-
-    def compute_i_s__2__o(self):
-        """Compute outflow from process via mass balance.
-        Needed in cases where lifetime is zero.
-        """
-        self.compute_s__2__dsdt()
-        self.outflow = self.inflow - self.dsdt
-        return self.outflow
-
-    def compute_o_s__2__i(self):
-        self.compute_s__2__dsdt()
-        self.inflow = self.dsdt + self.outflow
-        return self.outflow
-
-    """ Part 2: Lifetime model. """
 
     def compute_outflow_pdf(self):
         """Lifetime model. The method compute outflow_pdf returns an array year-by-cohort of the probability of a item
@@ -220,140 +148,6 @@ class DynamicStockModel(object):
                     scale=self.lifetime_scale[m, ...],
                 )
 
-    """
-    Part 3: Inflow driven model
-    Given: inflow, lifetime dist.
-    Default order of methods:
-    1) determine stock by cohort
-    2) determine total stock
-    2) determine outflow by cohort
-    3) determine total outflow
-    4) check mass balance.
-    """
-
-    def compute_i_lt__2__sc(self):
-        """With given inflow and lifetime distribution, the method builds the stock by cohort."""
-        self.compute_lt__2__sf()
-        self.stock_by_cohort = np.einsum("c...,tc...->tc...", self.inflow, self.sf)
-        # This command means: s_c[t,c] = i[c] * sf[t,c] for all t, c
-        # from the perspective of the stock the inflow has the dimension age-cohort,
-        # as each inflow(t) is added to the age-cohort c = t
-        return self.stock_by_cohort
-
-    def compute_sc__2__oc(self):
-        """Compute outflow by cohort from stock by cohort."""
-        self.outflow_by_cohort = np.zeros(self.shape_cohort)
-        self.outflow_by_cohort[1:, :, ...] = -np.diff(self.stock_by_cohort, axis=0)
-        self.outflow_by_cohort[self.t_diag_indices] = self.inflow - np.moveaxis(
-            self.stock_by_cohort.diagonal(0, 0, 1), -1, 0
-        )  # allow for outflow in year 0 already
-        return self.outflow_by_cohort
-
-    def compute_s_is__2__i(self, initial_stock: np.ndarray):
-        """Given a stock at t0 broken down by different cohorts tx ...  t0, an "initial stock",
-        This method calculates the original inflow that generated this stock.
-        """
-        assert initial_stock.shape[0] == self.n_t
-        self.inflow = np.zeros(self.shape)
-        # construct the sf of a product of cohort tc surviving year t
-        # using the lifetime distributions of the past age-cohorts
-        self.compute_lt__2__sf()
-        for cohort in range(0, self.n_t):
-            self.inflow[cohort, ...] = np.where(
-                self.sf[-1, cohort, ...] != 0,
-                initial_stock[cohort, ...] / self.sf[-1, cohort, ...],
-                0.0,
-            )
-        return self.inflow
-
-    """
-    Part 4: Stock driven model
-    Given: total stock, lifetime dist.
-    Default order of methods:
-    1) determine inflow, outflow by cohort, and stock by cohort
-    2) determine total outflow
-    3) determine stock change
-    4) check mass balance.
-    """
-
-    def compute_s_lt__2__sc_oc_i(self, do_correct_negative_inflow=False):
-        """With given total stock and lifetime distribution, the method builds the stock by cohort and the inflow."""
-        self.stock_by_cohort = np.zeros(self.shape_cohort)
-        self.outflow_by_cohort = np.zeros(self.shape_cohort)
-        self.inflow = np.zeros(self.shape)
-        # construct the sf of a product of cohort tc remaining in the stock in year t
-        self.compute_lt__2__sf()  # Computes sf if not present already.
-        # First year:
-        self.inflow[0, ...] = np.where(self.sf[0, 0, ...] != 0.0, self.stock[0] / self.sf[0, 0], 0.0)
-        self.stock_by_cohort[:, 0, ...] = (
-            self.inflow[0, ...] * self.sf[:, 0, ...]
-        )  # Future decay of age-cohort of year 0.
-        self.outflow_by_cohort[0, 0, ...] = self.inflow[0, ...] - self.stock_by_cohort[0, 0, ...]
-        # all other years:
-        for m in range(1, self.n_t):  # for all years m, starting in second year
-            # 1) Compute outflow from previous age-cohorts up to m-1
-            self.outflow_by_cohort[m, 0:m, ...] = (
-                self.stock_by_cohort[m - 1, 0:m, ...] - self.stock_by_cohort[m, 0:m, ...]
-            )  # outflow table is filled row-wise, for each year m.
-            # 2) Determine inflow from mass balance:
-            if not do_correct_negative_inflow:  # if no correction for negative inflows is made
-                self.inflow[m, ...] = np.where(
-                    self.sf[m, m, ...] != 0.0,
-                    (self.stock[m, ...] - self.stock_by_cohort[m, :, ...].sum(axis=0)) / self.sf[m, m, ...],
-                    0.0,
-                )  # allow for outflow during first year by rescaling with 1/sf[m,m]
-                # 3) Add new inflow to stock and determine future decay of new age-cohort
-                self.stock_by_cohort[m::, m, ...] = self.inflow[m, ...] * self.sf[m::, m, ...]
-                self.outflow_by_cohort[m, m, ...] = self.inflow[m, ...] * (1 - self.sf[m, m, ...])
-            # 2a) Correct remaining stock in cases where inflow would be negative:
-            else:
-                # if the stock declines faster than according to the lifetime model, this option allows to extract
-                # additional stock items.
-                # The negative inflow correction implemented here was developed in a joined effort by Sebastiaan Deetman
-                # and Stefan Pauliuk.
-                inflow_test = self.stock[m, ...] - self.stock_by_cohort[m, :, ...].sum(axis=0)
-                if inflow_test < 0:  # if stock-driven model would yield negative inflow
-                    delta = -1 * inflow_test  # Delta > 0!
-                    self.inflow[m, ...] = 0  # Set inflow to 0 and distribute mass balance gap onto remaining cohorts:
-                    delta_percent = np.where(
-                        self.stock_by_cohort[m, :, ...].sum(axis=0) != 0,
-                        delta / self.stock_by_cohort[m, :, ...].sum(axis=0),
-                        0.0,
-                    )
-                    # - Distribute gap equally across all cohorts (each cohort is adjusted by the same %, based on
-                    #   surplus with regards to the prescribed stock)
-                    # - delta_percent is a % value <= 100%
-                    # - correct for outflow and stock in current and future years
-                    # - adjust the entire stock AFTER year m as well, stock is lowered in year m, so future cohort
-                    #   survival also needs to decrease.
-
-                    # increase outflow according to the lost fraction of the stock, based on Delta_c
-                    self.outflow_by_cohort[m, :, ...] = self.outflow_by_cohort[m, :, ...] + (
-                        self.stock_by_cohort[m, :, ...] * delta_percent
-                    )
-                    # shrink future description of stock from previous age-cohorts by factor Delta_percent in current
-                    # AND future years.
-                    self.stock_by_cohort[m::, 0:m, ...] = (
-                        self.stock_by_cohort[m::, 0:m, ...] * (1 - delta_percent)
-                    )
-                else:  # If no negative inflow would occur
-                    self.inflow[m, ...] = np.where(
-                        self.sf[m, m, ...] != 0,  # Else, inflow is 0.
-                        (self.stock[m, ...] - self.stock_by_cohort[m, :, ...].sum(axis=0))
-                        / self.sf[m, m, ...],  # allow for outflow during first year by rescaling with 1/sf[m,m]
-                        0.0,
-                    )
-                    # Add new inflow to stock and determine future decay of new age-cohort
-                    self.stock_by_cohort[m::, m, ...] = self.inflow[m, ...] * self.sf[m::, m, ...]
-                    self.outflow_by_cohort[m, m, ...] = self.inflow[m, ...] * (1 - self.sf[m, m, ...])
-                # NOTE: This method of negative inflow correction is only of of many plausible methods of increasing the
-                # outflow to keep matching stock levels. It assumes that the surplus stock is removed in the year that
-                # it becomes obsolete. Each cohort loses the same fraction. Modellers need to try out whether this
-                # method leads to justifiable results. In some situations it is better to change the lifetime assumption
-                # than using the NegativeInflowCorrect option.
-
-        return self.stock_by_cohort, self.outflow_by_cohort, self.inflow
-
     def check_lifetime_consistency(self):
         """Check if lifetime parameters are consistent with the lifetime distribution type."""
         if self.ldf_type == "Fixed":
@@ -381,8 +175,166 @@ class DynamicStockModel(object):
             print("Stock balance for model dynamic stock model is noteworthy: " + str(balance))
 
     def get_stock_balance(self):
-        """Check wether inflow, outflow, and stock are balanced.
-
+        """Check whether inflow, outflow, and stock are balanced.
         If possible, the method returns the vector 'Balance', where Balance = inflow - outflow - stock_change
         """
-        return self.inflow - self.outflow - self.compute_s__2__dsdt()
+        if hasattr(self, 'inflow') and hasattr(self, 'outflow') and hasattr(self, 'stock'):
+            dsdt = np.diff(self.stock, axis=0, prepend=0)  #stock_change(t) = stock(t) - stock(t-1)
+            return self.inflow - self.outflow - dsdt
+        logging.warn('Cannot calculate stock balance')
+
+
+class InflowDrivenDSM(DynamicStockModel):
+    """Inflow driven model
+    Given: inflow, lifetime dist.
+    Default order of methods:
+    1) determine stock by cohort
+    2) determine total stock
+    2) determine outflow by cohort
+    3) determine total outflow
+    4) check mass balance.
+    """
+    def __init__(self, shape, inflow, ldf_type, lifetime_mean=None, lifetime_std=None):
+        super().__init__(shape, ldf_type, lifetime_mean, lifetime_std)
+        self.inflow = inflow
+
+    def compute(self):
+        assert self.inflow is not None, "Inflow must be specified."
+        stock_by_cohort = self.compute_i_lt__2__sc()
+        outflow_by_cohort = self.compute_sc__2__oc(stock_by_cohort)
+        self.stock = stock_by_cohort.sum(axis=1)
+        self.outflow = outflow_by_cohort.sum(axis=1)
+        self.check_stock_balance()
+
+    def compute_i_lt__2__sc(self):
+        """With given inflow and lifetime distribution, the method builds the stock by cohort."""
+        self.compute_lt__2__sf()
+        stock_by_cohort = np.einsum("c...,tc...->tc...", self.inflow, self.sf)
+        # This command means: s_c[t,c] = i[c] * sf[t,c] for all t, c
+        # from the perspective of the stock the inflow has the dimension age-cohort,
+        # as each inflow(t) is added to the age-cohort c = t
+        return stock_by_cohort
+
+    def compute_sc__2__oc(self, stock_by_cohort):
+        """Compute outflow by cohort from stock by cohort."""
+        outflow_by_cohort = np.zeros(self.shape_cohort)
+        outflow_by_cohort[1:, :, ...] = -np.diff(stock_by_cohort, axis=0)
+        outflow_by_cohort[self.t_diag_indices] = self.inflow - np.moveaxis(
+            stock_by_cohort.diagonal(0, 0, 1), -1, 0
+        )  # allow for outflow in year 0 already
+        return outflow_by_cohort
+
+    def compute_s_is__2__i(self, initial_stock: np.ndarray):
+        """Given a stock at t0 broken down by different cohorts tx ...  t0, an "initial stock",
+        This method calculates the original inflow that generated this stock.
+        """
+        assert initial_stock.shape[0] == self.n_t
+        self.inflow = np.zeros(self.shape)
+        # construct the sf of a product of cohort tc surviving year t
+        # using the lifetime distributions of the past age-cohorts
+        self.compute_lt__2__sf()
+        for cohort in range(0, self.n_t):
+            self.inflow[cohort, ...] = np.where(
+                self.sf[-1, cohort, ...] != 0,
+                initial_stock[cohort, ...] / self.sf[-1, cohort, ...],
+                0.0,
+            )
+        return self.inflow
+
+
+class StockDrivenDSM(DynamicStockModel):
+    """Stock driven model
+    Given: total stock, lifetime dist.
+    Default order of methods:
+    1) determine inflow, outflow by cohort, and stock by cohort
+    2) determine total outflow
+    3) determine stock change
+    4) check mass balance.
+    """
+    def __init__(self, shape, stock, ldf_type, lifetime_mean=None, lifetime_std=None):
+        super().__init__(shape, ldf_type, lifetime_mean, lifetime_std)
+        self.stock = stock
+
+    def compute(self):
+        assert self.stock is not None, "Stock must be specified."
+        self.inflow, outflow_by_cohort, stock_by_cohort = self.compute_s_lt__2__sc_oc_i()
+        self.outflow = outflow_by_cohort.sum(axis=1)
+        self.check_stock_balance()
+
+    def compute_s_lt__2__sc_oc_i(self, do_correct_negative_inflow=False):
+        """With given total stock and lifetime distribution, the method builds the stock by cohort and the inflow."""
+        stock_by_cohort = np.zeros(self.shape_cohort)
+        outflow_by_cohort = np.zeros(self.shape_cohort)
+        inflow = np.zeros(self.shape)
+        # construct the sf of a product of cohort tc remaining in the stock in year t
+        self.compute_lt__2__sf()  # Computes sf if not present already.
+        # First year:
+        inflow[0, ...] = np.where(self.sf[0, 0, ...] != 0.0, self.stock[0] / self.sf[0, 0], 0.0)
+        stock_by_cohort[:, 0, ...] = (
+            inflow[0, ...] * self.sf[:, 0, ...]
+        )  # Future decay of age-cohort of year 0.
+        outflow_by_cohort[0, 0, ...] = inflow[0, ...] - stock_by_cohort[0, 0, ...]
+        # all other years:
+        for m in range(1, self.n_t):  # for all years m, starting in second year
+            # 1) Compute outflow from previous age-cohorts up to m-1
+            outflow_by_cohort[m, 0:m, ...] = (
+                stock_by_cohort[m - 1, 0:m, ...] - stock_by_cohort[m, 0:m, ...]
+            )  # outflow table is filled row-wise, for each year m.
+            # 2) Determine inflow from mass balance:
+            if not do_correct_negative_inflow:  # if no correction for negative inflows is made
+                inflow[m, ...] = np.where(
+                    self.sf[m, m, ...] != 0.0,
+                    (self.stock[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0)) / self.sf[m, m, ...],
+                    0.0,
+                )  # allow for outflow during first year by rescaling with 1/sf[m,m]
+                # 3) Add new inflow to stock and determine future decay of new age-cohort
+                stock_by_cohort[m::, m, ...] = inflow[m, ...] * self.sf[m::, m, ...]
+                outflow_by_cohort[m, m, ...] = inflow[m, ...] * (1 - self.sf[m, m, ...])
+            # 2a) Correct remaining stock in cases where inflow would be negative:
+            else:
+                # if the stock declines faster than according to the lifetime model, this option allows to extract
+                # additional stock items.
+                # The negative inflow correction implemented here was developed in a joined effort by Sebastiaan Deetman
+                # and Stefan Pauliuk.
+                inflow_test = self.stock[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0)
+                if inflow_test < 0:  # if stock-driven model would yield negative inflow
+                    delta = -1 * inflow_test  # Delta > 0!
+                    inflow[m, ...] = 0  # Set inflow to 0 and distribute mass balance gap onto remaining cohorts:
+                    delta_percent = np.where(
+                        stock_by_cohort[m, :, ...].sum(axis=0) != 0,
+                        delta / stock_by_cohort[m, :, ...].sum(axis=0),
+                        0.0,
+                    )
+                    # - Distribute gap equally across all cohorts (each cohort is adjusted by the same %, based on
+                    #   surplus with regards to the prescribed stock)
+                    # - delta_percent is a % value <= 100%
+                    # - correct for outflow and stock in current and future years
+                    # - adjust the entire stock AFTER year m as well, stock is lowered in year m, so future cohort
+                    #   survival also needs to decrease.
+
+                    # increase outflow according to the lost fraction of the stock, based on Delta_c
+                    outflow_by_cohort[m, :, ...] = outflow_by_cohort[m, :, ...] + (
+                        stock_by_cohort[m, :, ...] * delta_percent
+                    )
+                    # shrink future description of stock from previous age-cohorts by factor Delta_percent in current
+                    # AND future years.
+                    stock_by_cohort[m::, 0:m, ...] = (
+                        stock_by_cohort[m::, 0:m, ...] * (1 - delta_percent)
+                    )
+                else:  # If no negative inflow would occur
+                    inflow[m, ...] = np.where(
+                        self.sf[m, m, ...] != 0,  # Else, inflow is 0.
+                        (self.stock[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0))
+                        / self.sf[m, m, ...],  # allow for outflow during first year by rescaling with 1/sf[m,m]
+                        0.0,
+                    )
+                    # Add new inflow to stock and determine future decay of new age-cohort
+                    stock_by_cohort[m::, m, ...] = inflow[m, ...] * self.sf[m::, m, ...]
+                    outflow_by_cohort[m, m, ...] = inflow[m, ...] * (1 - self.sf[m, m, ...])
+                # NOTE: This method of negative inflow correction is only of of many plausible methods of increasing the
+                # outflow to keep matching stock levels. It assumes that the surplus stock is removed in the year that
+                # it becomes obsolete. Each cohort loses the same fraction. Modellers need to try out whether this
+                # method leads to justifiable results. In some situations it is better to change the lifetime assumption
+                # than using the NegativeInflowCorrect option.
+
+        return inflow, outflow_by_cohort, stock_by_cohort

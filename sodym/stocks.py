@@ -1,7 +1,7 @@
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
-from .dynamic_stock_model import DynamicStockModel
+from .dynamic_stock_model import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM
 from .named_dim_arrays import StockArray, Parameter, Process
 from .dimensions import DimensionSet
 from .mfa_definition import StockDefinition
@@ -75,27 +75,27 @@ class StockWithDSM(Stock):
     def compute_inflow_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.inflow is not None, "inflow not yet set"
-        self.dsm = DynamicStockModel(
+        self.dsm = InflowDrivenDSM(
             shape=self.stock.dims.shape(),
             inflow=self.inflow.values,
             ldf_type=self.ldf_type,
             lifetime_mean=self.lifetime_mean.values,
             lifetime_std=self.lifetime_std.values,
         )
-        self.dsm.compute_inflow_driven()
+        self.dsm.compute()
         self.outflow.values[...] = self.dsm.outflow
         self.stock.values[...] = self.dsm.stock
 
     def compute_stock_driven(self):
         assert self.ldf_type is not None, "lifetime not yet set"
         assert self.stock is not None, "stock arry not yet set"
-        self.dsm = DynamicStockModel(
+        self.dsm = StockDrivenDSM(
             shape=self.stock.dims.shape(),
             stock=self.stock.values,
             ldf_type=self.ldf_type,
             lifetime_mean=self.lifetime_mean.values,
             lifetime_std=self.lifetime_std.values,
         )
-        self.dsm.compute_stock_driven()
+        self.dsm.compute()
         self.inflow.values[...] = self.dsm.inflow
         self.outflow.values[...] = self.dsm.outflow
