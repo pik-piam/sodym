@@ -1,7 +1,10 @@
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
-from .dynamic_stock_model import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM
+from .dynamic_stock_model import (
+    DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, SurvivalModel,
+    FixedSurvival, FoldedNormalSurvival, NormalSurvival, LogNormalSurvival, WeibullSurvival,
+)
 from .named_dim_arrays import StockArray, Parameter, Process
 from .dimensions import DimensionSet
 from .mfa_definition import StockDefinition
@@ -46,6 +49,21 @@ class Stock(PydanticBaseModel):
     def compute_stock(self):
         self.stock.values[...] = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index("t"))
 
+    def check_stock_balance(self):
+        balance = self.get_stock_balance()
+        balance = np.max(np.abs(balance).sum(axis=0))
+        if balance > 1:  # 1 tonne accuracy
+            raise RuntimeError("Stock balance for dynamic stock model is too high: " + str(balance))
+        elif balance > 0.001:
+            print("Stock balance for model dynamic stock model is noteworthy: " + str(balance))
+
+    def get_stock_balance(self):
+        """Check whether inflow, outflow, and stock are balanced.
+        If possible, the method returns the vector 'Balance', where Balance = inflow - outflow - stock_change
+        """
+        dsdt = np.diff(self.stock.values, axis=0, prepend=0)  #stock_change(t) = stock(t) - stock(t-1)
+        return self.inflow.values - self.outflow.values - dsdt
+
 
 class StockWithDSM(Stock):
     """Computes stocks, inflows and outflows based on a lifetime distribution function.
@@ -72,30 +90,49 @@ class StockWithDSM(Stock):
             name=f"{self.name}_lifetime_std", dims=self.stock.dims, values=lifetime_std_values
         )
 
+    @property
+    def shape(self):
+        return self.stock.dims.shape()
+
+    @property
+    def survival_model(self) -> SurvivalModel:
+        survival_map = {
+            'Fixed': FixedSurvival,
+            'Normal': NormalSurvival,
+            'FoldedNormal': FoldedNormalSurvival,
+            'LogNormal': LogNormalSurvival,
+            'Weibull': WeibullSurvival,
+        }
+        if self.ldf_type not in survival_map:
+            raise ValueError(f'ldf_type must be one of {list(survival_map.keys())}.')
+        return survival_map[self.ldf_type]
+
     def compute_inflow_driven(self):
-        assert self.ldf_type is not None, "lifetime not yet set"
-        assert self.inflow is not None, "inflow not yet set"
         self.dsm = InflowDrivenDSM(
-            shape=self.stock.dims.shape(),
+            shape=self.shape,
             inflow=self.inflow.values,
-            ldf_type=self.ldf_type,
-            lifetime_mean=self.lifetime_mean.values,
-            lifetime_std=self.lifetime_std.values,
+            survival_model=self.survival_model(
+                shape=self.shape,
+                lifetime_mean=self.lifetime_mean.values,
+                lifetime_std=self.lifetime_std.values,
+            )
         )
         self.dsm.compute()
         self.outflow.values[...] = self.dsm.outflow
         self.stock.values[...] = self.dsm.stock
+        self.check_stock_balance()
 
     def compute_stock_driven(self):
-        assert self.ldf_type is not None, "lifetime not yet set"
-        assert self.stock is not None, "stock arry not yet set"
         self.dsm = StockDrivenDSM(
-            shape=self.stock.dims.shape(),
+            shape=self.shape,
             stock=self.stock.values,
-            ldf_type=self.ldf_type,
-            lifetime_mean=self.lifetime_mean.values,
-            lifetime_std=self.lifetime_std.values,
+            survival_model=self.survival_model(
+                shape=self.shape,
+                lifetime_mean=self.lifetime_mean.values,
+                lifetime_std=self.lifetime_std.values,
+            )
         )
         self.dsm.compute()
         self.inflow.values[...] = self.dsm.inflow
         self.outflow.values[...] = self.dsm.outflow
+        self.check_stock_balance()
