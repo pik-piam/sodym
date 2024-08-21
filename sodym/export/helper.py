@@ -2,8 +2,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel
 
-from ..classes.named_dim_arrays import NamedDimArray
-from ..classes.dimensions import DimensionSet
+from ..named_dim_arrays import NamedDimArray
+from ..dimensions import DimensionSet
 
 
 class ArrayPlotter(PydanticBaseModel):
