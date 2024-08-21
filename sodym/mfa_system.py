@@ -3,7 +3,8 @@ import numpy as np
 from typing import Dict
 from .mfa_definition import MFADefinition
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
-from .stocks import Stock
+from .stocks import FlowDrivenStock
+from .stock_helper import make_empty_stock
 from .data_reader import DataReader
 
 
@@ -74,7 +75,7 @@ class MFASystem(ABC):
             flows[flow.name] = flow
         return flows
 
-    def initialize_stocks(self, processes: Dict[str, Process]) -> Dict[str, Stock]:
+    def initialize_stocks(self, processes: Dict[str, Process]) -> Dict[str, FlowDrivenStock]:
         """Initialize all defined stocks with zero values."""
         stocks = {}
         for stock_definition in self.definition.stocks:
@@ -83,7 +84,7 @@ class MFASystem(ABC):
                 process = processes[stock_definition.process_name]
             except KeyError:
                 raise KeyError(f"Missing process required by stock definition {stock_definition}.")
-            stock = Stock.from_definition(stock_definition, dims=dims, process=process)
+            stock = make_empty_stock(stock_definition, dims=dims, process=process)
             stocks[stock.name] = stock
         return stocks
 

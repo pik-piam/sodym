@@ -4,8 +4,6 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
 from .survival_functions import SurvivalModel
 from .named_dim_arrays import StockArray, Process
-from .dimensions import DimensionSet
-from .mfa_definition import StockDefinition
 
 
 class Stock(PydanticBaseModel):
@@ -32,13 +30,9 @@ class Stock(PydanticBaseModel):
         self.process_name = self.process.name
         return self
 
-    @classmethod
-    def from_definition(cls, stock_definition: StockDefinition, dims: DimensionSet, process: Process):
-        name = stock_definition.name
-        stock = StockArray(dims=dims, name=f"{name}_stock")
-        inflow = StockArray(dims=dims, name=f"{name}_inflow")
-        outflow = StockArray(dims=dims, name=f"{name}_outflow")
-        return cls(name=name, stock=stock, inflow=inflow, outflow=outflow, process=process)
+    @abstractmethod
+    def compute(self):
+        pass
 
     @property
     def shape(self):
@@ -63,6 +57,8 @@ class Stock(PydanticBaseModel):
         dsdt = np.diff(self.stock.values, axis=0, prepend=0)  #stock_change(t) = stock(t) - stock(t-1)
         return self.inflow.values - self.outflow.values - dsdt
 
+
+class FlowDrivenStock(Stock):
     def compute(self):
         stock_vals = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index("t"))
         self.stock = StockArray(
@@ -88,10 +84,6 @@ class DynamicStockModel(Stock):
     @property
     def t_diag_indices(self):
         return np.diag_indices(self.n_t) + (slice(None),) * len(self.shape_no_t)
-
-    @abstractmethod
-    def compute():
-        pass
 
 
 class InflowDrivenDSM(DynamicStockModel):

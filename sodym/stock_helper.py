@@ -5,7 +5,16 @@ from .survival_functions import (
 )
 from .named_dim_arrays import StockArray, Parameter, Process
 from .dimensions import DimensionSet
-from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM
+from .mfa_definition import StockDefinition
+from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, FlowDrivenStock
+
+
+def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, process: Process):
+    name = stock_definition.name
+    stock = StockArray(dims=dims, name=f"{name}_stock")
+    inflow = StockArray(dims=dims, name=f"{name}_inflow")
+    outflow = StockArray(dims=dims, name=f"{name}_outflow")
+    return FlowDrivenStock(name=name, stock=stock, inflow=inflow, outflow=outflow, process=process)
 
 
 def create_dynamic_stock(
