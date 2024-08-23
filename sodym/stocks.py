@@ -21,15 +21,7 @@ class Stock(PydanticBaseModel):
     inflow: StockArray
     outflow: StockArray
     name: str
-    process_name: Optional[str] = None
     process: Process
-
-    @model_validator(mode="after")
-    def check_process_names(self):
-        if self.process_name and self.process.name != self.process_name:
-            raise ValueError("Missmatching process names in Stock object")
-        self.process_name = self.process.name
-        return self
 
     @classmethod
     def from_definition(cls, stock_definition: StockDefinition, dims: DimensionSet, process: Process):
