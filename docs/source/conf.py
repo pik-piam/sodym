@@ -17,6 +17,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx-pydantic',
     'sphinxcontrib.autodoc_pydantic',
+    'myst_parser'
 ]
 
 templates_path = ['_templates']
