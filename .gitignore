@@ -3,3 +3,5 @@
 .venv
 *.pyc
 dist/
+docs/build
+docs/source/_autosummary
