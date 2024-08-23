@@ -3,14 +3,19 @@ import numpy as np
 import scipy.stats
 
 
+from sodym.dimensions import DimensionSet
+
+
 class SurvivalModel():
     def __init__(
         self,
-        shape,
+        dims: DimensionSet,
+        time_letter: str='t',
         **kwargs
     ):
-        self.shape = tuple(shape)
-        self.n_t = list(shape)[0]
+        self.t = np.array(dims[time_letter].items)
+        self.shape = dims.shape()
+        self.n_t = list(self.shape)[0]
         self.shape_cohort = (self.n_t,) + self.shape
         self.shape_no_t = tuple(list(self.shape)[1:])
         self.sf = self.survival_function(**kwargs)
@@ -25,10 +30,9 @@ class SurvivalModel():
         return np.tile(out, self.shape_no_t)
 
     def remaining_ages(self, m):
-        return self.tile(np.arange(0, self.n_t - m))
+        return self.tile(self.t[m:] - self.t[m])
 
-    @abstractmethod
-    def survival_function(self):
+    def survival_function(self, **kwargs):
         """Survival table self.sf(m,n) denotes the share of an inflow in year n (age-cohort) still
         present at the end of year m (after m-n years).
         The computation is self.sf(m,n) = ProbDist.sf(m-n), where ProbDist is the appropriate
@@ -46,6 +50,13 @@ class SurvivalModel():
         For example, sf could be assigned to the dynamic stock model from an exogenous computation
         to save time.
         """
+        sf = np.zeros(self.shape_cohort)
+        for m in range(0, self.n_t):  # cohort index
+            sf[m::, m, ...] = self.survival_function_by_year_id(m, **kwargs)
+        return sf
+
+    @abstractmethod
+    def survival_function_by_year_id(m, **kwargs):
         pass
 
     def compute_outflow_pdf(self):
@@ -60,21 +71,17 @@ class SurvivalModel():
         self.pdf = np.zeros(self.shape_cohort)
         self.pdf[self.t_diag_indices] = 1.0 - np.moveaxis(self.sf.diagonal(0, 0, 1), -1, 0)
         for m in range(0, self.n_t):
-            self.pdf[np.arange(m + 1, self.n_t), m, ...] = -1 * np.diff(self.sf[np.arange(m, self.n_t), m, ...], axis=0)
+            self.pdf[m+1:, m, ...] = -1 * np.diff(self.sf[m:, m, ...], axis=0)
         return self.pdf
 
 
 class FixedSurvival(SurvivalModel):
     """Fixed lifetime, age-cohort leaves the stock in the model year when the age specified as 'Mean' is reached."""
 
-    def survival_function(self, lifetime_mean, **kwargs):
-        sf = np.zeros(self.shape_cohort)
-        # Perform specific computations and checks for each lifetime distribution:            
-        for m in range(0, self.n_t):  # cohort index
-            sf[m::, m, ...] = (self.remaining_ages(m) < lifetime_mean[m, ...]).astype(int)
+    def survival_function_by_year_id(self, m, lifetime_mean, **kwargs):
         # Example: if lt is 3.5 years fixed, product will still be there after 0, 1, 2, and 3 years,
         # gone after 4 years.
-        return sf
+        return (self.remaining_ages(m) < lifetime_mean[m, ...]).astype(int)
 
 
 class NormalSurvival(SurvivalModel):
@@ -86,18 +93,15 @@ class NormalSurvival(SurvivalModel):
     the latter being implemented in the method compute compute_o_c_from_s_c.
     As alternative, use lognormal or folded normal distribution options.
     """
-    def survival_function(self, lifetime_mean, lifetime_std, **kwargs):
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
         if np.min(lifetime_mean) < 0:
             raise ValueError('lifetime_mean must be greater than zero.')
 
-        sf = np.zeros(self.shape_cohort)
-        for m in range(0, self.n_t):  # cohort index
-            sf[m::, m, ...] = scipy.stats.norm.sf(
-                self.remaining_ages(m),
-                loc=lifetime_mean[m, ...],
-                scale=lifetime_std[m, ...],
-            )
-        return sf
+        return scipy.stats.norm.sf(
+            self.remaining_ages(m),
+            loc=lifetime_mean[m, ...],
+            scale=lifetime_std[m, ...],
+        )
 
 
 class FoldedNormalSurvival(SurvivalModel):
@@ -105,19 +109,16 @@ class FoldedNormalSurvival(SurvivalModel):
     NOTE: call this with the parameters of the normal distribution mu and sigma of curve
     BEFORE folding, curve after folding will have different mu and sigma.
     """
-    def survival_function(self, lifetime_mean, lifetime_std, **kwargs):
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
         if np.min(lifetime_mean) < 0:
             raise ValueError('lifetime_mean must be greater than zero.')
 
-        sf = np.zeros(self.shape_cohort)
-        for m in range(0, self.n_t):  # cohort index
-            sf[m::, m, ...] = scipy.stats.foldnorm.sf(
-                self.remaining_ages(m),
-                lifetime_mean[m, ...] / lifetime_std[m, ...],
-                0,
-                scale=lifetime_std[m, ...],
-            )
-        return sf
+        return scipy.stats.foldnorm.sf(
+            self.remaining_ages(m),
+            lifetime_mean[m, ...] / lifetime_std[m, ...],
+            0,
+            scale=lifetime_std[m, ...],
+        )
 
 
 class LogNormalSurvival(SurvivalModel):
@@ -128,43 +129,37 @@ class LogNormalSurvival(SurvivalModel):
     https://docs.scipy.org/doc/scipy-0.13.0/reference/generated/scipy.stats.lognorm.html
     Same result as EXCEL function "=LOGNORM.VERT(x;LT_LN;SG_LN;TRUE)"
     """
-    def survival_function(self, lifetime_mean, lifetime_std, **kwargs):
-        sf = np.zeros(self.shape_cohort)
-        for m in range(0, self.n_t):  # cohort index
-            # calculate parameter mu of underlying normal distribution:
-            lt_ln = np.log(
-                lifetime_mean[m, ...]
-                / np.sqrt(
-                    1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
-                )
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
+        # calculate parameter mu of underlying normal distribution:
+        lt_ln = np.log(
+            lifetime_mean[m, ...]
+            / np.sqrt(
+                1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
+                / (lifetime_std[m, ...] * lifetime_std[m, ...])
             )
-            # calculate parameter sigma of underlying normal distribution
-            sg_ln = np.sqrt(
-                np.log(
-                    1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
-                )
+        )
+        # calculate parameter sigma of underlying normal distribution
+        sg_ln = np.sqrt(
+            np.log(
+                1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
+                / (lifetime_std[m, ...] * lifetime_std[m, ...])
             )
-            # compute survial function
-            sf[m::, m, ...] = scipy.stats.lognorm.sf(
-                self.remaining_ages(m), s=sg_ln, loc=0, scale=np.exp(lt_ln)
-            )
-        return sf
+        )
+        # compute survial function
+        return scipy.stats.lognorm.sf(
+            self.remaining_ages(m), s=sg_ln, loc=0, scale=np.exp(lt_ln)
+        )
 
 
 class WeibullSurvival(SurvivalModel):
     """Weibull distribution with standard definition of scale and shape parameters."""
-    def survival_function(self, lifetime_shape, lifetime_scale, **kwargs):
+    def survival_function(self, m, lifetime_shape, lifetime_scale, **kwargs):
         if np.min(lifetime_shape) < 0:
             raise ValueError("Lifetime shape must be positive for Weibull distribution.")
 
-        sf = np.zeros(self.shape_cohort)
-        for m in range(0, self.n_t):  # cohort index
-            sf[m::, m, ...] = scipy.stats.weibull_min.sf(
-                self.remaining_ages(m),
-                c=lifetime_shape[m, ...],
-                loc=0,
-                scale=lifetime_scale[m, ...],
-            )
-        return sf
+        return scipy.stats.weibull_min.sf(
+            self.remaining_ages(m),
+            c=lifetime_shape[m, ...],
+            loc=0,
+            scale=lifetime_scale[m, ...],
+        )

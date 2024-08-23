@@ -19,6 +19,7 @@ def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, proc
 
 def create_dynamic_stock(
     name: str, process: Process,
+    time_letter: str='t',
     stock: Optional[StockArray] = None,
     inflow: Optional[StockArray] = None,
     process_name: Optional[str] = None,
@@ -31,7 +32,7 @@ def create_dynamic_stock(
     dims = stock.dims if stock is not None else inflow.dims
     lifetime_mean, lifetime_std = cast_lifetime(lifetime_mean, lifetime_std, dims)
     survival_model = get_survival_model(ldf_type)(
-        shape=dims.shape(), lifetime_mean=lifetime_mean, lifetime_std=lifetime_std
+        dims=dims, lifetime_mean=lifetime_mean, lifetime_std=lifetime_std, time_letter=time_letter
     )
     if stock is not None:
         logging.info('Creating StockDrivenDSM object')
