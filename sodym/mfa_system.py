@@ -38,9 +38,7 @@ class MFASystem(ABC):
     def __init__(self, data_reader: DataReader, model_cfg: dict={}):
         """Define and set up the MFA system and load all required data.
         Does not compute stocks or flows yet."""
-        for k, v in model_cfg.items():  # Allows other model properties to be set as attributes,
-            # which can be acccessed in other class methods.
-            setattr(self, k, v)
+        self.model_cfg = model_cfg
         self.definition = self.set_up_definition()
         self.dims = data_reader.read_dimensions(self.definition.dimensions)
         self.parameters = self.read_parameters(data_reader=data_reader)

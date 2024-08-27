@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import numpy as np
-from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 from typing import Optional
 from .survival_functions import SurvivalModel
 from .named_dim_arrays import StockArray, Process
@@ -20,15 +20,7 @@ class Stock(PydanticBaseModel):
     inflow: Optional[StockArray] = None
     outflow: Optional[StockArray] = None
     name: str
-    process_name: Optional[str] = None
     process: Process
-
-    @model_validator(mode="after")
-    def check_process_names(self):
-        if self.process_name and self.process.name != self.process_name:
-            raise ValueError("Missmatching process names in Stock object")
-        self.process_name = self.process.name
-        return self
 
     @abstractmethod
     def compute(self):

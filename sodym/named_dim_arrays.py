@@ -403,22 +403,10 @@ class Flow(NamedDimArray):
 
     from_process: Process
     to_process: Process
-    from_process_name: Optional[str] = None
-    to_process_name: Optional[str] = None
-
-    @model_validator(mode="after")
-    def check_process_names(self):
-        if self.from_process_name and self.from_process.name != self.from_process_name:
-            raise ValueError("Missmatching process names in Flow object")
-        self.from_process_name = self.from_process.name
-        if self.to_process_name and self.to_process.name != self.to_process_name:
-            raise ValueError("Missmatching process names in Flow object")
-        self.to_process_name = self.to_process.name
-        return self
 
     @model_validator(mode="after")
     def flow_name_related_to_proccesses(self):
-        self.name = f"{self.from_process_name} => {self.to_process_name}"
+        self.name = f"{self.from_process.name} => {self.to_process.name}"
         return self
 
     @property
