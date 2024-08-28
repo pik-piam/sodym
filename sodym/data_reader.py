@@ -29,13 +29,13 @@ class DataReader(ABC):
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
         pass
 
-    def read_parameters(self, parameters: List[ParameterDefinition], dims: DimensionSet
+    def read_parameters(self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
                         ) -> Dict[str, Parameter]:
         parameters = {}
-        for parameter in parameters:
-            dims = dims.get_subset(parameter.dim_letters)
+        for parameter in parameter_definitions:
+            dim_subset = dims.get_subset(parameter.dim_letters)
             parameters[parameter.name] = self.read_parameter_values(
-                parameter=parameter.name, dims=dims
+                parameter=parameter.name, dims=dim_subset,
             )
         return parameters
 

@@ -17,6 +17,21 @@ def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, proc
     return FlowDrivenStock(name=name, stock=stock, inflow=inflow, outflow=outflow, process=process)
 
 
+def make_empty_stocks(
+        stock_definitions: list[StockDefinition], processes: dict[str, Process], dims: DimensionSet
+        ):
+    empty_stocks = {}
+    for stock_definition in stock_definitions:
+        dim_subset = dims.get_subset(stock_definition.dim_letters)
+        try:
+            process = processes[stock_definition.process_name]
+        except KeyError:
+            raise KeyError(f"Missing process required by stock definition {stock_definition}.")
+        stock = make_empty_stock(stock_definition, dims=dim_subset, process=process)
+        empty_stocks[stock.name] = stock
+    return empty_stocks
+
+
 def create_dynamic_stock(
     name: str, process: Process,
     time_letter: str='t',

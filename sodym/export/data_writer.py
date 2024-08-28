@@ -66,7 +66,7 @@ class DataWriter(PydanticBaseModel):
         exclude_node_ids = [p.id for p in mfa.processes.values() if p.name in exclude_nodes]
 
         if self.sankey["color_scheme"] == "blueish":
-            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims[mfa.model_cfg['product_dimension_name']].len)]
+            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims[mfa.mfa_cfg['product_dimension_name']].len)]
 #        elif color_scheme == "antique":
 #            material_colors = pl.colors.qualitative.Antique[: mfa.dims[cfg.product_dimension_name].len]
 #        elif color_scheme == "viridis":
@@ -82,7 +82,7 @@ class DataWriter(PydanticBaseModel):
             for key, value in kwargs.items():
                 link_dict[key].append(value)
 
-        product_dim_letter = mfa.model_cfg['product_dimension_name'][0].lower()
+        product_dim_letter = mfa.mfa_cfg['product_dimension_name'][0].lower()
 
         for f in mfa.flows.values():
             if (
@@ -97,7 +97,7 @@ class DataWriter(PydanticBaseModel):
 
             id_orig = f.dims.string
             has_materials = product_dim_letter in id_orig
-            id_target = f"ter{product_dim_letter if has_materials else ''}{'s' if mfa.model_cfg['has_scenarios'] else ''}"
+            id_target = f"ter{product_dim_letter if has_materials else ''}{'s' if mfa.mfa_cfg['has_scenarios'] else ''}"
             values = np.einsum(f"{id_orig}->{id_target}", f.values)
 
             if carbon_only:
@@ -105,7 +105,7 @@ class DataWriter(PydanticBaseModel):
             else:
                 values = np.sum(values, axis=1)
 
-            if mfa.model_cfg['has_scenarios']:
+            if mfa.mfa_cfg['has_scenarios']:
                 try:
                     values = values[mfa.dims["Time"].index(year), region_id, ..., 1]
                 except IndexError:

@@ -1,14 +1,19 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import Dict, Optional
+
 import numpy as np
-from typing import Dict
+from pydantic import BaseModel as PydanticBaseModel
+
 from .mfa_definition import MFADefinition
+from .dimensions import DimensionSet
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
-from .stocks import FlowDrivenStock
-from .stock_helper import make_empty_stock
+from .stocks import Stock
+from .stock_helper import make_empty_stocks
+from .flow_helper import make_empty_flows
 from .data_reader import DataReader
 
 
-class MFASystem(ABC):
+class MFASystem(PydanticBaseModel):
     """An MFASystem class handles the definition, setup and calculation of a Material Flow Analysis system, which
     consists of a set of processes, flows, stocks defined over a set of dimensions. 
     For the concrete definition of the system, a subclass of MFASystem must be implemented.
@@ -34,68 +39,35 @@ class MFASystem(ABC):
     MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
     """
+    dims: DimensionSet
+    parameters: Dict[str, Parameter]
+    scalar_parameters: Optional[dict] = {}
+    processes: Dict[str, Process]
+    flows: Dict[str, Flow]
+    stocks: Dict[str, Stock]
+    mfa_cfg: Optional[dict] = {}
 
-    def __init__(self, data_reader: DataReader, model_cfg: dict={}):
+    @classmethod
+    def from_data_reader(cls, definition: MFADefinition, data_reader: DataReader, mfa_cfg: dict={}):
         """Define and set up the MFA system and load all required data.
         Does not compute stocks or flows yet."""
-        self.model_cfg = model_cfg
-        self.definition = self.set_up_definition()
-        self.dims = data_reader.read_dimensions(self.definition.dimensions)
-        self.parameters = self.read_parameters(data_reader=data_reader)
-        self.scalar_parameters = data_reader.read_scalar_data(self.definition.scalar_parameters)
-        self.processes = {
-            name: Process(name=name, id=id) for id, name in enumerate(self.definition.processes)
+        dims = data_reader.read_dimensions(definition.dimensions)
+        parameters = data_reader.read_parameters(definition.parameters, dims=dims)
+        scalar_parameters = data_reader.read_scalar_data(definition.scalar_parameters)
+        processes = {
+            name: Process(name=name, id=id) for id, name in enumerate(definition.processes)
         }
-        self.flows = self.initialize_flows(processes=self.processes)
-        self.stocks = self.initialize_stocks(processes=self.processes)
+        flows = make_empty_flows(processes=processes, flow_definitions=definition.flows, dims=dims)
+        stocks = make_empty_stocks(processes=processes, stock_definitions=definition.stocks, dims=dims)
+        return cls(
+            dims=dims, parameters=parameters, scalar_parameters=scalar_parameters,
+            processes=processes, flows=flows, stocks=stocks, mfa_cfg=mfa_cfg,
+        )
 
     @abstractmethod
     def compute(self):
         """Perform all computations for the MFA system."""
         pass
-
-    @abstractmethod
-    def set_up_definition(self) -> MFADefinition:
-        """The MFADefinition must be specified in the subclass."""
-        pass
-
-    def initialize_flows(self, processes: Dict[str, Process]) -> Dict[str, Flow]:
-        """Initialize all defined flows with zero values."""
-        flows = {}
-        for flow_definition in self.definition.flows:
-            try:
-                from_process = processes[flow_definition.from_process_name]
-                to_process = processes[flow_definition.to_process_name]
-            except KeyError:
-                raise KeyError(f"Missing process required by flow definition {flow_definition}.")
-            dims = self.dims.get_subset(flow_definition.dim_letters)
-            flow = Flow(from_process=from_process, to_process=to_process, dims=dims)
-            flows[flow.name] = flow
-        return flows
-
-    def initialize_stocks(self, processes: Dict[str, Process]) -> Dict[str, FlowDrivenStock]:
-        """Initialize all defined stocks with zero values."""
-        stocks = {}
-        for stock_definition in self.definition.stocks:
-            dims = self.dims.get_subset(stock_definition.dim_letters)
-            try:
-                process = processes[stock_definition.process_name]
-            except KeyError:
-                raise KeyError(f"Missing process required by stock definition {stock_definition}.")
-            stock = make_empty_stock(stock_definition, dims=dims, process=process)
-            stocks[stock.name] = stock
-        return stocks
-
-    def read_parameters(self, data_reader: DataReader) -> Dict[str, Parameter]:
-        """Use the data_reader (DataReader object) to obtain data for all the parameters
-        in the MFA system definition."""
-        parameters = {}
-        for parameter in self.definition.parameters:
-            dims = self.dims.get_subset(parameter.dim_letters)
-            parameters[parameter.name] = data_reader.read_parameter_values(
-                parameter=parameter.name, dims=dims
-            )
-        return parameters
 
     def get_new_array(self, **kwargs) -> NamedDimArray:
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
