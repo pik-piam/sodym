@@ -66,6 +66,14 @@ class DimensionSet(PydanticBaseModel):
             raise ValueError('Dimensions must have unique letters in DimensionSet.')
         return self
 
+    def drop(self, key: str, inplace: bool=False):
+        dim_to_drop = self._dict[key]
+        if not inplace:
+            dimensions = copy(self.dimensions)
+            dimensions.remove(dim_to_drop)
+            return DimensionSet(dimensions=dimensions)
+        self.dimensions.remove(dim_to_drop)
+
     @property
     def _dict(self) -> Dict[str, Dimension]:
         """Contains mappings.

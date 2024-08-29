@@ -34,7 +34,7 @@ class ArrayPlotter(PydanticBaseModel):
         self.plot_all_subplots(subplotlist_array, subplotlist_x_array, subplotlist_name)
         self.plot_legend()
         if save_path is not None:
-            plt.savefig(self.save_path)
+            plt.savefig(save_path)
         if do_show:
             plt.show()
         return self.fig_ax
