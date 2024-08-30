@@ -7,6 +7,7 @@ from sodym.dimensions import DimensionSet
 
 
 class SurvivalModel():
+    """Contains shared functionality across the various survival models."""
     def __init__(
         self,
         dims: DimensionSet,
@@ -60,12 +61,8 @@ class SurvivalModel():
         pass
 
     def compute_outflow_pdf(self):
-        """Lifetime model. The method compute outflow_pdf returns an array year-by-cohort of the probability of a item
+        """Returns an array year-by-cohort of the probability that an item
         added to stock in year m (aka cohort m) leaves in in year n. This value equals pdf(n,m).
-
-        The pdf is computed from the survival table sf, where the type of the lifetime distribution enters. The shape of
-        the output pdf array is n_t * n_t, but the meaning is years by age-cohorts. The method does nothing if the pdf
-        already exists.
         """
         self.sf = self.survival_function()
         self.pdf = np.zeros(self.shape_cohort)
@@ -76,7 +73,8 @@ class SurvivalModel():
 
 
 class FixedSurvival(SurvivalModel):
-    """Fixed lifetime, age-cohort leaves the stock in the model year when the age specified as 'Mean' is reached."""
+    """Fixed lifetime, age-cohort leaves the stock in the model year when a certain age,
+    specified as 'Mean', is reached."""
 
     def survival_function_by_year_id(self, m, lifetime_mean, **kwargs):
         # Example: if lt is 3.5 years fixed, product will still be there after 0, 1, 2, and 3 years,

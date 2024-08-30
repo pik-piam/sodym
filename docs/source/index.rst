@@ -8,17 +8,25 @@ SODYM documentation
 .. include:: ../../README.md
    :parser: myst_parser.sphinx_
 
-Model components
-----------------
+MFA model and components
+------------------------
 .. toctree::
    :maxdepth: 1
 
+   sodym.mfa_system
    sodym.mfa_definition
    sodym.data_reader
    sodym.dimension
    sodym.named_dim_arrays
+
+Stocks
+~~~~~~
+.. toctree::
+   :maxdepth: 1
+
    sodym.stocks
-   sodym.mfa_system
+   sodym.stock_helper
+   sodym.survival_functions
 
 Data writing and plotting
 -------------------------

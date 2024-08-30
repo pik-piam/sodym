@@ -27,11 +27,11 @@ class Stock(PydanticBaseModel):
         pass
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         return self.stock.dims.shape()
 
     @property
-    def process_id(self):
+    def process_id(self) -> int:
         return self.process.id
 
     def check_stock_balance(self):
@@ -42,7 +42,7 @@ class Stock(PydanticBaseModel):
         elif balance > 0.001:
             print("Stock balance for model dynamic stock model is noteworthy: " + str(balance))
 
-    def get_stock_balance(self):
+    def get_stock_balance(self) -> np.ndarray:
         """Check whether inflow, outflow, and stock are balanced.
         If possible, the method returns the vector 'Balance', where Balance = inflow - outflow - stock_change
         """
@@ -51,6 +51,7 @@ class Stock(PydanticBaseModel):
 
 
 class FlowDrivenStock(Stock):
+    """Given inflows and outflows, the stock can be calculated."""
     def compute(self):
         stock_vals = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index("t"))
         self.stock = StockArray(
@@ -59,44 +60,42 @@ class FlowDrivenStock(Stock):
 
 
 class DynamicStockModel(Stock):
+    """Parent class for dynamic stock models, which are based on stocks having a specified
+    lifetime (distribution).
+    """
     survival_model: SurvivalModel
 
     @property
-    def n_t(self):
+    def n_t(self) -> int:
         return list(self.shape)[0]
 
     @property
-    def shape_cohort(self):
+    def shape_cohort(self) -> tuple:
         return (self.n_t, ) + self.shape
 
     @property
-    def shape_no_t(self):
+    def shape_no_t(self) -> tuple:
         return tuple(list(self.shape)[1:])
 
     @property
-    def t_diag_indices(self):
+    def t_diag_indices(self) -> tuple:
         return np.diag_indices(self.n_t) + (slice(None),) * len(self.shape_no_t)
 
 
 class InflowDrivenDSM(DynamicStockModel):
-    """Inflow driven model
-    Given: inflow, lifetime dist.
-    Default order of methods:
-    1) determine stock by cohort
-    2) determine total stock
-    2) determine outflow by cohort
-    3) determine total outflow
-    4) check mass balance.
+    """Inflow driven model.
+    Given inflow and lifetime distribution calculate stocks and outflows.
     """
     inflow: StockArray
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         return self.inflow.dims.shape()
 
     def compute(self):
-        stock_by_cohort = self.compute_i_lt__2__sc()
-        outflow_by_cohort = self.compute_sc__2__oc(stock_by_cohort)
+        """Determine stocks and outflows and store values in the class instance."""
+        stock_by_cohort = self.compute_stock_by_cohort()
+        outflow_by_cohort = self.compute_outflow_by_cohort(stock_by_cohort)
         stock_vals = stock_by_cohort.sum(axis=1)
         outflow_vals = outflow_by_cohort.sum(axis=1)
     
@@ -107,16 +106,16 @@ class InflowDrivenDSM(DynamicStockModel):
             dims=self.inflow.dims, values=outflow_vals, name=f'{self.name}_outflow'
         )
 
-    def compute_i_lt__2__sc(self):
-        """With given inflow and lifetime distribution, the method builds the stock by cohort."""
-        stock_by_cohort = np.einsum("c...,tc...->tc...", self.inflow.values, self.survival_model.sf)
-        # This command means: s_c[t,c] = i[c] * sf[t,c] for all t, c
-        # from the perspective of the stock the inflow has the dimension age-cohort,
-        # as each inflow(t) is added to the age-cohort c = t
-        return stock_by_cohort
+    def compute_stock_by_cohort(self) -> np.ndarray:
+        """With given inflow and lifetime distribution, the method builds the stock by cohort.
+        s_c[t,c] = i[c] * sf[t,c] for all t, c
+        from the perspective of the stock the inflow has the dimension age-cohort,
+        as each inflow(t) is added to the age-cohort c = t
+        """
+        return np.einsum("c...,tc...->tc...", self.inflow.values, self.survival_model.sf)
 
-    def compute_sc__2__oc(self, stock_by_cohort):
-        """Compute outflow by cohort from stock by cohort."""
+    def compute_outflow_by_cohort(self, stock_by_cohort) -> np.ndarray:
+        """Compute outflow by cohort from changes in the stock by cohort and the known inflow."""
         outflow_by_cohort = np.zeros(self.shape_cohort)
         outflow_by_cohort[1:, :, ...] = -np.diff(stock_by_cohort, axis=0)
         outflow_by_cohort[self.t_diag_indices] = self.inflow.values - np.moveaxis(
@@ -126,18 +125,14 @@ class InflowDrivenDSM(DynamicStockModel):
 
 
 class StockDrivenDSM(DynamicStockModel):
-    """Stock driven model
-    Given: total stock, lifetime dist.
-    Default order of methods:
-    1) determine inflow, outflow by cohort, and stock by cohort
-    2) determine total outflow
-    3) determine stock change
-    4) check mass balance.
+    """Stock driven model.
+    Given total stock and lifetime distribution, calculate inflows and outflows.
     """
     stock: StockArray
 
     def compute(self):
-        inflow_vals, outflow_by_cohort, stock_by_cohort = self.compute_s_lt__2__sc_oc_i()
+        """Determine inflows and outflows and store values in the class instance."""
+        inflow_vals, outflow_by_cohort, stock_by_cohort = self.compute_inflow_and_outflow()
         outflow_vals = outflow_by_cohort.sum(axis=1)
         self.inflow = StockArray(
             dims=self.stock.dims, values=inflow_vals, name=f'{self.name}_inflow',
@@ -146,8 +141,9 @@ class StockDrivenDSM(DynamicStockModel):
             dims=self.stock.dims, values=outflow_vals, name=f'{self.name}_outflow'
         )
 
-    def compute_s_lt__2__sc_oc_i(self, do_correct_negative_inflow=False):
-        """With given total stock and lifetime distribution, the method builds the stock by cohort and the inflow."""
+    def compute_inflow_and_outflow(self, do_correct_negative_inflow=False) -> tuple[np.ndarray]:
+        """With given total stock and lifetime distribution,
+        the method builds the stock by cohort and the inflow."""
         stock_by_cohort = np.zeros(self.shape_cohort)
         outflow_by_cohort = np.zeros(self.shape_cohort)
         inflow = np.zeros(self.shape)

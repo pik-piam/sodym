@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Dict, Optional
 
 import numpy as np
-from pydantic import BaseModel as PydanticBaseModel
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 
 from .mfa_definition import MFADefinition
 from .dimensions import DimensionSet
@@ -14,7 +14,7 @@ from .data_reader import DataReader
 
 
 class MFASystem(PydanticBaseModel):
-    """An MFASystem class handles the definition, setup and calculation of a Material Flow Analysis system, which
+    """An MFASystem class handles the calculation of a Material Flow Analysis system, which
     consists of a set of processes, flows, stocks defined over a set of dimensions. 
     For the concrete definition of the system, a subclass of MFASystem must be implemented.
 
@@ -24,33 +24,34 @@ class MFASystem(PydanticBaseModel):
 
     >>> from sodym import MFASystem
     >>> class CustomMFA(MFASystem):
-    >>>     def set_up_definition(self) -> MFADefinition:
-    >>>         # define the model here
     >>>     def compute(self):
     >>>         # do some computations on the CustomMFA attributes: stocks and flows
 
     Initialize and run your MFA System model:
 
     >>> from sodym import ExampleDataReader
-    >>> data_reader = ExampleDataReader(...)
-    >>> mfa = MFASystem(data_reader=data_reader)
+    >>> data_reader = ExampleDataReader(dimension_datasets={...}, ...)
+    >>> dimension_definitions = [DimensionDefinition(name='time', letter='t', dtype=int), ...]
+    >>> dims = data_reader.read_dimensions(dimension_definitions)
+    >>> mfa = MFASystem(dim=dims, ...)
     >>> mfa.compute()
 
     MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
     """
+    model_config = ConfigDict(protected_namespaces=())
+
     dims: DimensionSet
     parameters: Dict[str, Parameter]
     scalar_parameters: Optional[dict] = {}
     processes: Dict[str, Process]
     flows: Dict[str, Flow]
     stocks: Dict[str, Stock]
-    mfa_cfg: Optional[dict] = {}
 
     @classmethod
-    def from_data_reader(cls, definition: MFADefinition, data_reader: DataReader, mfa_cfg: dict={}):
+    def from_data_reader(cls, definition: MFADefinition, data_reader: DataReader):
         """Define and set up the MFA system and load all required data.
-        Does not compute stocks or flows yet."""
+        Initialises stocks and flows with all zero values."""
         dims = data_reader.read_dimensions(definition.dimensions)
         parameters = data_reader.read_parameters(definition.parameters, dims=dims)
         scalar_parameters = data_reader.read_scalar_data(definition.scalar_parameters)
@@ -61,7 +62,7 @@ class MFASystem(PydanticBaseModel):
         stocks = make_empty_stocks(processes=processes, stock_definitions=definition.stocks, dims=dims)
         return cls(
             dims=dims, parameters=parameters, scalar_parameters=scalar_parameters,
-            processes=processes, flows=flows, stocks=stocks, mfa_cfg=mfa_cfg,
+            processes=processes, flows=flows, stocks=stocks,
         )
 
     @abstractmethod
@@ -84,7 +85,8 @@ class MFASystem(PydanticBaseModel):
         - all flows entering and leaving the process
         - the stock change of the process
 
-        The process with ID 0 is the system boundary. Its mass balance serves as a mass balance of the whole system."""
+        The process with ID 0 is the system boundary.
+        Its mass balance serves as a mass balance of the whole system."""
 
         # start of with largest possible dimensionality;
         # addition and subtraction will automatically reduce to the maximum shape, i.e. the dimensions contained in all

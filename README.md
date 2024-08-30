@@ -11,34 +11,53 @@ https://github.com/IndEcol/ODYM
 Clone the sodym repository using git. Activate the virtual environment and install poetry, and then run 'python -m poetry install' to obtain all the necessary dependencies.
 
 ## Build your own MFA system
-The functionality provided by sodym is general compared to specific MFA systems, therefore the user is required to build upon this for their specific use-case.
-This can be done using python inheritance (i.e. defining a new class that inherits from `MFASystem`) and defining class methods: `set_up_definition` which needs to return an `MFADefinition` object, and `compute`, which provides equations linking the different model attributes.
+The functionality provided by sodym is general compared to specific MFA systems,
+therefore the user is required to build upon this for their specific use-case.
+
+First of all, the user needs to decide what they want to model:
+which processes, flows and stocks are important and which dimensions do they want to consider
+(time, regions, different materials etc.).
 ```
-from sodym import MFASystem, MFADefinition, DimensionDefinition, FlowDefinition
+from sodym import DimensionDefinition, FlowDefinition, MFADefinition
+dimensions = [DimensionDefinition(name='Time', dim_letter='t', dtype=int)]
+processes = ['sysenv', 'use']
+flows = [
+    FlowDefinition(from_process='sysenv', to_process='use', dim_letters=('t', )),
+    FlowDefinition(from_process='use', to_process='sysenv', dim_letters=('t', )),
+]
+stocks = [StockDefinition(name='use', dim_letters=('t', ))]
+parameters = [ParameterDefinition(name='production_rate', dim_letters=('t', ))]
+mfa_definition = MFADefinition(dimensions=dimensions, processes=processes, flows=flows, stocks=stocks, parameters=parameters)
+```
+The user also needs to specify how the different flows and stocks are related to each other.
+For this, they need to create their own MFA system,
+which can be done using python inheritance
+(i.e. defining a new class that inherits from `MFASystem`)
+and defining the class method `compute`,
+which provides equations linking the different model attributes.
+```
+from sodym import MFASystem
 
 class MyMFA(MFASystem):
-    def set_up_definition(self):
-        dimensions = [DimensionDefinition(name='Time', dim_letter='t', dtype=int)]
-        processes = ['sysenv', 'use']
-        flows = [
-            FlowDefinition(from_process='sysenv', to_process='use', dim_letters=('t', )),
-            FlowDefinition(from_process='use', to_process='sysenv', dim_letters=('t', )),
-        ]
-        ...
-        return MFADefinition(dimensions=dimensions, processes=processes, ...)
-
     def compute(self):
         self.flows['use => sysenv'] = self.stocks['use'].outflow
         ...
 ```
-As well as the system definition, described above, the model also requires some data, and this data must also pass some validations.
+Then, the model requires some data, which must pass some validations.
 For this, sodym has the `DataReader` class, which is a template specifying the methods and output types required, in order for the user to create their own data reader, depending on how they wish to store their model data.
 An `ExampleDataReader` is also defined in sodym and provides functionality for reading dimension and parameter datasets from .csv files.
 
 After the user has defined their MFA system class and their data reader, they can be put together and the model can be run.
 ```
 my_data_reader = MyDataReader()
-my_mfa = MyMFA(data_reader=my_data_reader)
+dims = my_data_reader.read_dimensions(mfa_definition.dimensions)
+parameters = my_data_reader.read_parameters(mfa_definition.parameters)
+...
+```
+Finally we are ready to initialise an instance of our MFA system with the data we have just read,
+and then perform the computations.
+```
+my_mfa = MyMFA(dims=dims, parameters=parameters, ...)
 my_mfa.compute()
 ```
 Either after initialisation or after the computation, the user can access the attributes of the MFASystem instance, and e.g. write the results to .csv file.

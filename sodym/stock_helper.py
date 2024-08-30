@@ -10,6 +10,10 @@ from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, FlowDriv
 
 
 def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, process: Process):
+    """Initialises a FlowDrivenStock object with zero values for the stock, inflow and outflow.
+    The stock, inflow and outflow have the specified dimensions,
+    which ensures that when values are set later, the shape of the data is correct.
+    """
     name = stock_definition.name
     stock = StockArray(dims=dims, name=f"{name}_stock")
     inflow = StockArray(dims=dims, name=f"{name}_inflow")
@@ -20,6 +24,8 @@ def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, proc
 def make_empty_stocks(
         stock_definitions: list[StockDefinition], processes: dict[str, Process], dims: DimensionSet
         ):
+    """Initialise empty FlowDrivenStock objects for each of the stocks listed in stock definitions.
+    """
     empty_stocks = {}
     for stock_definition in stock_definitions:
         dim_subset = dims.get_subset(stock_definition.dim_letters)
@@ -42,6 +48,11 @@ def create_dynamic_stock(
     lifetime_mean: Optional[Parameter] = None,
     lifetime_std: Optional[Parameter] = None,
 ) -> DynamicStockModel:
+    """Initialise either a StockDrivenDSM or an InflowDrivenDSM,
+    depending on whether the user passes stock or inflow.
+    The survival function of the dynamic stock model depends on the lifetime distribution function
+     (ldf_type), the lifetime mean and the lifetime standard deviation.
+    """
     if stock is None and inflow is None:
         raise ValueError('Either stock or inflow must be passed to create a dynamic stock object.')
     dims = stock.dims if stock is not None else inflow.dims
@@ -64,12 +75,15 @@ def create_dynamic_stock(
 
 
 def cast_lifetime(lifetime_mean: Parameter, lifetime_std: Parameter, dims: DimensionSet):
+    """Duplicates lifetime mean and standard deviation values for additional dimensions."""
     lifetime_mean_values = lifetime_mean.cast_values_to(dims)
     lifetime_std_values = lifetime_std.cast_values_to(dims)
     return lifetime_mean_values, lifetime_std_values
 
 
-def get_survival_model(ldf_type):
+def get_survival_model(ldf_type: str):
+    """Provides a map whereby the user passes a string and a surival model (class, not instance)
+    is returned."""
     survival_map = {
         'Fixed': FixedSurvival,
         'Normal': NormalSurvival,
