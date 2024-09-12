@@ -1,14 +1,3 @@
-"""
-Concepts based on:
-
-ODYM
-Copyright (c) 2018 Industrial Ecology
-author: Stefan Pauliuk, Uni Freiburg, Germany
-https://github.com/IndEcol/ODYM
-
-Re-written for use in simson project
-"""
-
 from copy import copy
 import numpy as np
 import pandas as pd
@@ -20,7 +9,7 @@ from .mfa_definition import DefinitionWithDimLetters
 
 
 class NamedDimArray(PydanticBaseModel):
-    """ "Parent class for an array with pre-defined dimensions, which are addressed by name. Operations between
+    """Parent class for an array with pre-defined dimensions, which are addressed by name. Operations between
     different multi-dimensional arrays can than be performed conveniently, as the dimensions are automatically matched.
 
     In order to 'fix' the dimensions of the array, the array has to be 'declared' by calling the NamedDimArray object
@@ -48,9 +37,9 @@ class NamedDimArray(PydanticBaseModel):
     foo[keys] = bar or foo = bar[keys]. For details on the allowed values of 'keys', see the docstring of the
     SubArrayHandler class.
 
-    The dimensions of a NamedDimArray stored as a DimensionSet object in the 'dims' attribute."""
+    The dimensions of a NamedDimArray stored as a :py:class:`sodym.dimensions.DimensionSet` object in the 'dims' attribute."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     dims: DimensionSet
     values: Optional[np.ndarray] = None
@@ -74,10 +63,14 @@ class NamedDimArray(PydanticBaseModel):
         cls, parent_alldims: DimensionSet, name: str = "unnamed", dim_letters: tuple = None, values: np.ndarray = None
     ):
         """
-        - dimensions are set in the form of a DimensionSet object, which is derived as a subset from a parent
-          DimensionSet object.
-        - values can be initialized directly (usually done for parameters, but not for flows and stocks, which are only
-          computed later) or otherwise are filled with zeros
+        Parameters:
+            parent_alldims: DimensionSet from which the objects dimensions are derived
+            dim_letters: specify which dimensions to take from parent_alldims
+            values: can be initialized directly, or otherwise are filled with zeros
+            name: property of the cls instance being created
+
+        Returns:
+            cls instance
         """
         dims = parent_alldims.get_subset(dim_letters)
         return cls(dims=dims, name=name, values=values)
@@ -115,7 +108,7 @@ class NamedDimArray(PydanticBaseModel):
     def cast_to(self, target_dims: DimensionSet):
         return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims), name=self.name)
 
-    def sum_values_to(self, result_dims: tuple = ()):
+    def sum_values_to(self, result_dims: tuple[str] = ()):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):
@@ -328,7 +321,7 @@ class SubArrayHandler:
         letters_removed = [d for d, items in self.def_dict.items() if isinstance(items, str)]
         return tuple([d for d in all_letters if d not in letters_removed])
 
-    def to_nda(self):
+    def to_nda(self) -> 'NamedDimArray':
         """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
 
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
@@ -365,11 +358,12 @@ class SubArrayHandler:
 
 
 class Process(PydanticBaseModel):
-    """Processes serve as nodes for the MFA system layout definition. Flows are defined between two processes. Stocks
-    are connected to a process. Processes do not contain values themselves.
+    """Processes serve as nodes for the MFA system layout definition.
+    Flows are defined between two processes. Stocks are connected to a process.
+    Processes do not contain values themselves.
 
-    Processes get an ID by the order they are defined in  in the MFA system definition. The process with ID 0
-    necessarily contains everything outside the system boundary.
+    Processes get an ID by the order they are defined in the :py:attribute:`MFASystem.definition`.
+    The process with ID 0 necessarily contains everything outside the system boundary.
     """
 
     name: str
@@ -385,41 +379,35 @@ class Process(PydanticBaseModel):
 
 
 class Flow(NamedDimArray):
-    """The values of Flow objects are the main computed outcome of the MFA system. A flow connects two processes. Its
-    name is set as a combination of the names of the two processes it connects.
+    """The values of Flow objects are the main computed outcome of the MFA system.
+    A Flow object connects two :py:class:`Process` objects.
+    The name of the Flow object is set as a combination of the names of the two processes it connects.
 
-    Note that it is a subclass of NamedDimArray, so most of the methods are defined in the NamedDimArray class.
+    Flow is a subclass of :py:class:`NamedDimArray`, so most of its methods are inherited.
+
+    **Example**
+
+    >>> from sodym import DimensionSet, Flow, Process
+    >>> goods = Dimension(name='Good', letter='g', items=['Car', 'Bus', 'Bicycle'])
+    >>> time = Dimension(name='Time', letter='t', items=[1990, 2000, 2010, 2020, 2030])
+    >>> dimensions = DimensionSet([goods, time])
+    >>> fabrication = Process(name='fabrication', id=2)
+    >>> use = Process(name='use', id=3)
+    >>> flow = Flow(from_process='fabrication', to_process='use', dims=dimensions)
+
+    In the above example, we did not pass any values when initialising the Flow instance,
+    and these would get filled with zeros.
+    See the validation (filling) method in :py:class:`NamedDimArray`.
     """
+    model_config = ConfigDict(protected_namespaces=())
 
-    from_process: Optional[Process] = None
-    to_process: Optional[Process] = None
-    from_process_name: str
-    to_process_name: str
-
-    # TODO: Define flow by passing process objects, rather than from flow definition.
-
-    @model_validator(mode="before")
-    def check_process_names(v):
-        if "from_process" in v:
-            if v["from_process"].name != v["from_process_name"]:
-                raise ValueError("Missmatching process names in Flow object")
-        if "to_process" in v:
-            if not v["to_process"].name != v["to_process_name"]:
-                raise ValueError("Missmatching process names in Flow object")
-        return v
+    from_process: Process
+    to_process: Process
 
     @model_validator(mode="after")
     def flow_name_related_to_proccesses(self):
-        self.name = f"{self.from_process_name} => {self.to_process_name}"
+        self.name = f"{self.from_process.name} => {self.to_process.name}"
         return self
-
-    def attach_to_processes(self, processes: dict):
-        """Store links to the Process objects the Flow connects, and their IDs.
-
-        (To set up the links, the names given in the Flow definition dict are used)
-        """
-        self.from_process = processes[self.from_process_name]
-        self.to_process = processes[self.to_process_name]
 
     @property
     def from_process_id(self):
@@ -433,17 +421,17 @@ class Flow(NamedDimArray):
 class StockArray(NamedDimArray):
     """Stocks allow accumulation of material at a process, i.e. between two flows.
 
-    As Stock contains NamedDimArrays for its stock value, inflow and outflow. For details, see the Stock class.
+    StockArray inherits all its functionality from :py:class:`NamedDimArray`.
+    StockArray's are used in the :py:class:`sodym.stocks.Stock` for the inflow, outflow and stock.
     """
-
     pass
 
 
 class Parameter(NamedDimArray):
-    """Parameters are used for example to define the share of flows that go into one branch when the flow splits at a
-    process.
+    """Parameter's can be used when defining the :py:meth:`sodym.mfa_system.MFASystem.compute` of a specific MFA system,
+    to quantify the links between specific :py:class:`sodym.stocks.Stock` and :py:class:`Flow` objects,
+    for example as the share of flows that go into one branch when the flow splits at a process.
 
-    All methods are defined in the NamedDimArray parent class.
+    Parameter inherits all its functionality from :py:class:`NamedDimArray`.
     """
-
     pass

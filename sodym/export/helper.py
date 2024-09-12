@@ -2,8 +2,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel
 
-from ..classes.named_dim_arrays import NamedDimArray
-from ..classes.dimensions import DimensionSet
+from ..named_dim_arrays import NamedDimArray
+from ..dimensions import DimensionSet
 
 
 class ArrayPlotter(PydanticBaseModel):
@@ -34,7 +34,7 @@ class ArrayPlotter(PydanticBaseModel):
         self.plot_all_subplots(subplotlist_array, subplotlist_x_array, subplotlist_name)
         self.plot_legend()
         if save_path is not None:
-            plt.savefig(self.save_path)
+            plt.savefig(save_path)
         if do_show:
             plt.show()
         return self.fig_ax

@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 from pydantic import BaseModel as PydanticBaseModel
 
-from ..classes.mfa_system import MFASystem
+from ..mfa_system import MFASystem
 
 
 class DataWriter(PydanticBaseModel):
@@ -28,8 +28,16 @@ class DataWriter(PydanticBaseModel):
         if not os.path.exists(export_directory):
             os.makedirs(export_directory)
         for flow_name, flow in mfa.flows.items():
-            df = flow.to_df()
             path_out = os.path.join(export_directory, f'{flow_name.replace(" => ", "__2__")}.csv')
+            flow.to_df().to_csv(path_out, index=False)
+        logging.info(f'Data saved in directory {export_directory}')
+
+    def export_mfa_stocks_to_csv(self, mfa: MFASystem, export_directory: str):
+        if not os.path.exists(export_directory):
+            os.makedirs(export_directory)
+        for stock_name, stock in mfa.stocks.items():
+            df = stock.stock.to_df()
+            path_out = os.path.join(export_directory, f'{stock_name}_stock.csv')
             df.to_csv(path_out, index=False)
         logging.info(f'Data saved in directory {export_directory}')
 
@@ -58,7 +66,7 @@ class DataWriter(PydanticBaseModel):
         exclude_node_ids = [p.id for p in mfa.processes.values() if p.name in exclude_nodes]
 
         if self.sankey["color_scheme"] == "blueish":
-            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims[mfa.product_dimension_name].len)]
+            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims['m'].len)]
 #        elif color_scheme == "antique":
 #            material_colors = pl.colors.qualitative.Antique[: mfa.dims[cfg.product_dimension_name].len]
 #        elif color_scheme == "viridis":
@@ -74,7 +82,7 @@ class DataWriter(PydanticBaseModel):
             for key, value in kwargs.items():
                 link_dict[key].append(value)
 
-        product_dim_letter = mfa.product_dimension_name[0].lower()
+        product_dim_letter = 'm'
 
         for f in mfa.flows.values():
             if (
@@ -89,7 +97,7 @@ class DataWriter(PydanticBaseModel):
 
             id_orig = f.dims.string
             has_materials = product_dim_letter in id_orig
-            id_target = f"ter{product_dim_letter if has_materials else ''}{'s' if mfa.has_scenarios else ''}"
+            id_target = f"ter{product_dim_letter if has_materials else ''}{''}"
             values = np.einsum(f"{id_orig}->{id_target}", f.values)
 
             if carbon_only:
@@ -97,15 +105,7 @@ class DataWriter(PydanticBaseModel):
             else:
                 values = np.sum(values, axis=1)
 
-            if mfa.has_scenarios:
-                try:
-                    values = values[mfa.dims["Time"].index(year), region_id, ..., 1]
-                except IndexError:
-                    pass
-            # choose SSP2 as default scenario
-            # TODO: Implement Scenario switch
-            else:  # MFA doesn't use scenarios
-                values = values[mfa.dims["Time"].index(year), region_id, ...]
+            values = values[mfa.dims["Time"].index(year), region_id, ...]
 
             if has_materials:
                 for im, c in enumerate(material_colors):
