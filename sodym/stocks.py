@@ -53,7 +53,8 @@ class Stock(PydanticBaseModel):
 class FlowDrivenStock(Stock):
     """Given inflows and outflows, the stock can be calculated."""
     def compute(self):
-        stock_vals = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index("t"))
+        time_dim_letter = 't' if 't' in self.stock.dims.letters else 'h'
+        stock_vals = np.cumsum(self.inflow.values - self.outflow.values, axis=self.stock.dims.index(time_dim_letter))
         self.stock = StockArray(
             dims=self.inflow.dims, name=f'{self.name}_stock', values=stock_vals
         )
