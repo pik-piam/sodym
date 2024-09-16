@@ -138,7 +138,7 @@ class MFASystem(PydanticBaseModel):
             for p_name in self.processes.keys()
             if id_failed[p_name] and p_name!='sysenv'
         ]
-        if np.any(np.array(id_failed.values())):
+        if any(id_failed.values()):
             raise RuntimeError(f"Error, Mass Balance fails for processes {', '.join(messages_failed)}")
         else:
             print("Success - Mass balance consistent!")
