@@ -122,5 +122,9 @@ class DimensionSet(PydanticBaseModel):
     def string(self):
         return "".join(self.letters)
 
+    @property
+    def spaced_string(self):
+        return " ".join(self.letters)
+
     def index(self, key):
         return [d.letter for d in self.dimensions].index(key)
