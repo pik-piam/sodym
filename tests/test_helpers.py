@@ -4,7 +4,7 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 import pytest
 
 from sodym import NamedDimArray, Dimension, DimensionSet
-from sodym.named_dim_array_helper import ndarray_stack, ndarray_split
+from sodym.named_dim_array_helper import named_dim_array_stack
 
 
 dimension_set = DimensionSet(
@@ -20,10 +20,10 @@ class NamedDimArrayFactory(ModelFactory[NamedDimArray]):
 
 
 @pytest.mark.parametrize("new_dim_length", [2, 7])
-def test_ndarray_stack(new_dim_length):
+def test_named_dim_array_stack(new_dim_length):
     named_dim_arrays = [NamedDimArrayFactory.build() for _ in range(new_dim_length)]
     additional_dim = Dimension(name='extra', letter='x', items=list(range(new_dim_length)))
-    stacked = ndarray_stack(named_dim_arrays, additional_dim)
+    stacked = named_dim_array_stack(named_dim_arrays, additional_dim)
 
     assert stacked.shape[:-1] == dimension_set.shape()
     assert stacked.dims.dimensions[:-1] == dimension_set.dimensions
@@ -34,12 +34,12 @@ def test_ndarray_stack(new_dim_length):
     assert stacked.dims.dimensions[-1] == additional_dim
 
 
-def test_ndarray_split():
+def test_named_dim_array_split():
     named_dim_arrays = [NamedDimArrayFactory.build() for _ in range(3)]
     items = ['pre-industrial', 1950, 2000]
     additional_dim = Dimension(name='extra', letter='x', items=items)
-    stacked = ndarray_stack(named_dim_arrays, additional_dim)
-    split = ndarray_split(stacked, dim_letter='x')
+    stacked = named_dim_array_stack(named_dim_arrays, additional_dim)
+    split = stacked.split(dim_letter='x')
     assert len(split) == 3
     assert list(split.keys()) == items
     for i, item in enumerate(items):

@@ -1,4 +1,5 @@
 from copy import copy
+from einops import rearrange
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
@@ -224,6 +225,29 @@ class NamedDimArray(PydanticBaseModel):
         df = index.to_frame(index=False)
         df["value"] = self.values.flatten()
         return df
+
+    def split(self, dim_letter) -> dict:
+        """Reverse the named_dim_array_stack, returns a dictionary of `NamedDimArray`s
+        associated with the item in the dimension that has been split.
+        Method can be applied to `NamedDimArray`s, `StockArray`s, `Parameter`s and `Flow`s.
+        """
+        if dim_letter not in self.dims.letters:
+            raise ValueError('Dimension to split on must exist in the named_dim_array')
+        smaller_dimensions = self.dims.drop(dim_letter, inplace=False)
+        extracted_dimension = self.dims[dim_letter]
+        reorganised_values = rearrange(
+            self.values, f'{self.dims.spaced_string} -> {dim_letter} {smaller_dimensions.spaced_string}'
+        )
+        kwargs = {}
+        if isinstance(self, Flow):
+            kwargs = {"from_process": self.from_process, "to_process": self.to_process}
+        return {
+            item: self.__class__(
+                values=reorganised_values[i],
+                dims=smaller_dimensions,
+                **kwargs
+            ) for i, item in enumerate(extracted_dimension.items)
+        }
 
 
 class SubArrayHandler:
