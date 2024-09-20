@@ -130,44 +130,29 @@ class NamedDimArray(PydanticBaseModel):
             other = NamedDimArray(dims=self.dims, values=other * np.ones(self.shape))
         return other
 
-    def intersect_dims_with(self, other):
-        matching_dims = []
-        for dim in self.dims.dimensions:
-            if dim.letter in other.dims.letters:
-                matching_dims.append(dim)
-        return DimensionSet(dimensions=matching_dims)
-
-    def union_dims_with(self, other):
-        all_dims = copy(self.dims.dimensions)
-        letters_self = self.dims.letters
-        for dim in other.dims.dimensions:
-            if dim.letter not in letters_self:
-                all_dims.append(dim)
-        return DimensionSet(dimensions=all_dims)
-
     def __add__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
             dims=dims_out, values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
         )
 
     def __sub__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
             dims=dims_out, values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
         )
 
     def __mul__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.union_dims_with(other)
+        dims_out = self.dims.union_with(other.dims)
         values_out = np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values)
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __truediv__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.union_dims_with(other)
+        dims_out = self.dims.union_with(other.dims)
         values_out = np.einsum(
             f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1.0 / other.values
         )
@@ -175,13 +160,13 @@ class NamedDimArray(PydanticBaseModel):
 
     def minimum(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         values_out = np.minimum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def maximum(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         values_out = np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 

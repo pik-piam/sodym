@@ -79,7 +79,7 @@ class ArrayPlotter(PydanticBaseModel):
     def get_x_array_like_value_array(self):
         if self.x_array is None:
             x_dim_obj = self.array.dims[self.intra_line_dim]
-            x_dimset = DimensionSet(dimensions=[x_dim_obj])
+            x_dimset = DimensionSet(dim_list=[x_dim_obj])
             self.x_array = NamedDimArray(dims=x_dimset, values=np.array(x_dim_obj.items), name=self.intra_line_dim)
         self.x_array = self.x_array.cast_to(self.array.dims)
 

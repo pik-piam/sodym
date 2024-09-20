@@ -15,7 +15,7 @@ class DataReader(ABC):
     """
     def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
         dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
-        return DimensionSet(dimensions=dimensions)
+        return DimensionSet(dim_list=dimensions)
 
     @abstractmethod
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
