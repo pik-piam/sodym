@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from copy import copy, deepcopy
-from einops import rearrange
 from collections import defaultdict
 import numpy as np
 import pandas as pd
