@@ -239,23 +239,7 @@ class NamedDimArray(PydanticBaseModel):
         associated with the item in the dimension that has been split.
         Method can be applied to `NamedDimArray`s, `StockArray`s, `Parameter`s and `Flow`s.
         """
-        if dim_letter not in self.dims.letters:
-            raise ValueError('Dimension to split on must exist in the named_dim_array')
-        smaller_dimensions = self.dims.drop(dim_letter, inplace=False)
-        extracted_dimension = self.dims[dim_letter]
-        reorganised_values = rearrange(
-            self.values, f'{self.dims.spaced_string} -> {dim_letter} {smaller_dimensions.spaced_string}'
-        )
-        kwargs = {}
-        if isinstance(self, Flow):
-            kwargs = {"from_process": self.from_process, "to_process": self.to_process}
-        return {
-            item: self.__class__(
-                values=reorganised_values[i],
-                dims=smaller_dimensions,
-                **kwargs
-            ) for i, item in enumerate(extracted_dimension.items)
-        }
+        return {item: self[{dim_letter: item}] for item in self.dims[dim_letter].items}
 
 
 class SubArrayHandler:
