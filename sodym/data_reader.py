@@ -21,8 +21,8 @@ class DataReader(ABC):
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
         pass
 
-    @abstractmethod
     def read_scalar_data(self, parameters: List[str]) -> dict:
+        """Optional addition method if additional scalar parameters are required."""
         pass
 
     @abstractmethod
