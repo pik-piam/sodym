@@ -1,6 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel
+import re
+import unicodedata
 
 from ..named_dim_arrays import NamedDimArray
 from ..dimensions import DimensionSet
@@ -74,7 +76,7 @@ class ArrayPlotter(PydanticBaseModel):
             n_subplots = self.array.dims[self.subplot_dim].len
             nx = int(np.ceil(np.sqrt(n_subplots)))
             ny = int(np.ceil(n_subplots / nx))
-        self.fig_ax = plt.subplots(nx, ny, figsize=(10, 9))
+        self.fig_ax = plt.subplots(nx, ny, figsize=(10, 9), squeeze=False)
 
     def get_x_array_like_value_array(self):
         if self.x_array is None:
@@ -134,3 +136,16 @@ def list_of_slices(array: NamedDimArray, dim_name_to_slice) -> tuple[list[NamedD
         list_array = [array]
         list_name = [None]
     return list_array, list_name
+
+
+def to_valid_file_name(value: str) -> str:
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII. Convert spaces or repeated dashes to single dashes.
+    Remove characters that aren't alphanumerics, underscores, or hyphens.
+    Convert to lowercase. Also strip leading and trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]', '_', value).strip('-_')
