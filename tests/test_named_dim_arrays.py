@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_array_almost_equal
+from numpy.testing import assert_almost_equal, assert_array_almost_equal, assert_array_equal
 from pydantic_core import ValidationError
 import pytest
 
@@ -127,3 +127,16 @@ def test_get_item():
     assert_array_almost_equal(cats_on_the_moon.values, space_animals.values[2, :, 0])
     # note that this does not work for the time dimension (not strings)
     # and also assumes that no item appears in more than one dimension
+
+
+def test_sub_array_handler():
+    space_cat = space_animals['cat']  # space cat from str
+    another_space_cat = space_animals[{'a': 'cat'}]  # space cat from dict
+    assert_array_equal(space_cat.values, another_space_cat.values)
+
+    space_1990 = space_animals[{'t': 1990}]  # space animals in 1990
+    assert space_1990.values.shape == (4, 2)
+    assert space_1990.dims.letters == ('p', 'a')
+
+    with pytest.raises(ValueError):
+        space_animals[{'a': 'dog'}]  # there isn't a dog in space_animals

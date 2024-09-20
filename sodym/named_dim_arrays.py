@@ -1,5 +1,7 @@
-from copy import copy
+from collections.abc import Iterable
+from copy import copy, deepcopy
 from einops import rearrange
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
@@ -7,6 +9,12 @@ from typing import Optional
 
 from .dimensions import DimensionSet
 from .mfa_definition import DefinitionWithDimLetters
+
+
+def is_iterable(arg):
+    return (
+        isinstance(arg, Iterable) and not isinstance(arg, str)
+    )
 
 
 class NamedDimArray(PydanticBaseModel):
@@ -284,7 +292,7 @@ class SubArrayHandler:
     def __init__(self, named_dim_array: NamedDimArray, definition):
         self.nda = named_dim_array
         self._get_def_dict(definition)
-        self.has_dim_with_several_items = any(isinstance(v, (tuple, list, np.ndarray)) for v in self.def_dict.values())
+        self.has_dim_with_several_items = any(is_iterable(v) for v in self.def_dict.values())
         self._init_ids()
 
     def _get_def_dict(self, definition):
@@ -304,7 +312,8 @@ class SubArrayHandler:
                 "docstring."
             )
         dict_out = None
-        for d in self.nda.dims:
+        for d in self.nda.dims.dimensions:
+            print(d.letter, d.items)
             if item in d.items:
                 if dict_out is not None:
                     raise ValueError(
@@ -316,14 +325,11 @@ class SubArrayHandler:
             raise ValueError(f"Slicing item '{item}' not found in any dimension.")
         return dict_out
 
-    def to_dict_tuple(self, slice_def):
-        dict_out = {}
+    def to_dict_tuple(self, slice_def) -> dict:
+        dict_out = defaultdict(list)
         for item in slice_def:
             key, value = self.to_dict_single_item(item)
-            if key not in dict_out:  # if key does not exist, add it
-                dict_out[key] = [value]
-            else:
-                dict_out[key].append(value)
+            dict_out[key].append(value)
         # if there is only one item along a dimension, convert list to single item
         return {k: v if len(v) > 1 else v[0] for k, v in dict_out.items()}
 
@@ -335,15 +341,21 @@ class SubArrayHandler:
     @property
     def values_pointer(self):
         """Pointer to the subset of the values array of the parent NamedDimArray object."""
+        print(self.ids)
         return self.nda.values[self.ids]
+
+    @property
+    def dims(self):
+        dims = deepcopy(self.nda.dims)
+        for letter in self.def_dict.keys():
+            if not is_iterable(self.def_dict[letter]):
+                dims.drop(letter, inplace=True)
+        return dims
 
     @property
     def dim_letters(self):
         """Updated dimension letters, where sliced dimensions with only one item along that direction are removed."""
-        all_letters = self.nda.dims.letters
-        # remove the dimensions along which there is only one item
-        letters_removed = [d for d, items in self.def_dict.items() if isinstance(items, str)]
-        return tuple([d for d in all_letters if d not in letters_removed])
+        return self.dims.letters
 
     def to_nda(self) -> 'NamedDimArray':
         """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
@@ -353,8 +365,8 @@ class SubArrayHandler:
         assert (
             not self.has_dim_with_several_items
         ), "Cannot convert to NamedDimArray if there are dimensions with several items"
-        dims = self.nda.dims.get_subset(self.dim_letters)
-        return NamedDimArray(dims=dims, values=self.values_pointer, name=self.nda.name)
+        
+        return NamedDimArray(dims=self.dims, values=self.values_pointer, name=self.nda.name)
 
     def _init_ids(self):
         """
@@ -363,22 +375,19 @@ class SubArrayHandler:
         """
         self._id_list = [slice(None) for _ in self.nda.dims.letters]
         for dim_letter, item_or_items in self.def_dict.items():
-            item_ids_singledim = self._get_items_ids(dim_letter, item_or_items)
-            self._set_ids_singledim(dim_letter, item_ids_singledim)
+            self._set_ids_single_dim(dim_letter, item_or_items)
 
-    def _get_items_ids(self, dim_letter, item_or_items):
+    def _set_ids_single_dim(self, dim_letter, item_or_items):
         """Given either a single item name or a list of item names, return the corresponding item IDs, along one
         dimension 'dim_letter'."""
-        if isinstance(item_or_items, str):  # single item
-            return self._get_single_item_id(dim_letter, item_or_items)
-        elif isinstance(item_or_items, (tuple, list, np.ndarray)):  # list of items
-            return [self._get_single_item_id(dim_letter, item) for item in item_or_items]
+        if is_iterable(item_or_items):
+            items_ids = [self._get_single_item_id(dim_letter, item) for item in item_or_items]
+        else:
+            items_ids = self._get_single_item_id(dim_letter, item_or_items)  # single item
+        self._id_list[self.nda.dims.index(dim_letter)] = items_ids
 
     def _get_single_item_id(self, dim_letter, item_name):
         return self.nda.dims[dim_letter].items.index(item_name)
-
-    def _set_ids_singledim(self, dim_letter, ids):
-        self._id_list[self.nda.dims.index(dim_letter)] = ids
 
 
 class Process(PydanticBaseModel):
