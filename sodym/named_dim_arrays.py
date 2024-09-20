@@ -296,7 +296,6 @@ class SubArrayHandler:
             )
         dict_out = None
         for d in self.nda.dims.dimensions:
-            print(d.letter, d.items)
             if item in d.items:
                 if dict_out is not None:
                     raise ValueError(
@@ -324,7 +323,6 @@ class SubArrayHandler:
     @property
     def values_pointer(self):
         """Pointer to the subset of the values array of the parent NamedDimArray object."""
-        print(self.ids)
         return self.nda.values[self.ids]
 
     @property
