@@ -287,7 +287,7 @@ class SubArrayHandler:
                 "docstring."
             )
         dict_out = None
-        for d in self.nda.dims.dimensions:
+        for d in self.nda.dims:
             if item in d.items:
                 if dict_out is not None:
                     raise ValueError(
@@ -338,7 +338,7 @@ class SubArrayHandler:
         assert (
             not self.has_dim_with_several_items
         ), "Cannot convert to NamedDimArray if there are dimensions with several items"
-        
+
         return NamedDimArray(dims=self.dims, values=self.values_pointer, name=self.nda.name)
 
     def _init_ids(self):
