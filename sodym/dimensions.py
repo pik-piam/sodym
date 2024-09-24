@@ -57,7 +57,7 @@ class DimensionSet(PydanticBaseModel):
 
     """
 
-    dimensions: list[Dimension]
+    dim_list: list[Dimension]
 
     @model_validator(mode='after')
     def no_repeated_dimensions(self):
@@ -69,10 +69,10 @@ class DimensionSet(PydanticBaseModel):
     def drop(self, key: str, inplace: bool=False):
         dim_to_drop = self._dict[key]
         if not inplace:
-            dimensions = copy(self.dimensions)
+            dimensions = copy(self.dim_list)
             dimensions.remove(dim_to_drop)
-            return DimensionSet(dimensions=dimensions)
-        self.dimensions.remove(dim_to_drop)
+            return DimensionSet(dim_list=dimensions)
+        self.dim_list.remove(dim_to_drop)
 
     @property
     def _dict(self) -> Dict[str, Dimension]:
@@ -80,18 +80,18 @@ class DimensionSet(PydanticBaseModel):
 
         letter --> dim object and name --> dim object
         """
-        return {dim.name: dim for dim in self.dimensions} | {dim.letter: dim for dim in self.dimensions}
+        return {dim.name: dim for dim in self.dim_list} | {dim.letter: dim for dim in self.dim_list}
 
     def __getitem__(self, key) -> Dimension:
         if isinstance(key, str):
             return self._dict[key]
         elif isinstance(key, int):
-            return self.dimensions[key]
+            return self.dim_list[key]
         else:
             raise TypeError("Key must be string or int")
 
     def __iter__(self):
-        return iter(self.dimensions)
+        return iter(self.dim_list)
 
     def size(self, key: str):
         return self._dict[key].len
@@ -101,26 +101,41 @@ class DimensionSet(PydanticBaseModel):
         return tuple(self.size(key) for key in keys)
 
     def get_subset(self, dims: tuple = None) -> 'DimensionSet':
-        """Selects :py:class:`Dimension` objects from the object attribute dimensions,
+        """Selects :py:class:`Dimension` objects from the object attribute dim_list,
         according to the dims passed, which can be either letters or names.
         Returns a copy if dims are not given.
         """
         subset = copy(self)
         if dims is not None:
-            subset.dimensions = [self._dict[dim_key] for dim_key in dims]
+            subset.dim_list = [self._dict[dim_key] for dim_key in dims]
         return subset
+
+    def expand_by(self, added_dims: list[Dimension]) -> 'DimensionSet':
+        """Expands the DimensionSet by adding new dimensions to it.
+        """
+        if not all([dim.letter not in self.letters for dim in added_dims]):
+            raise ValueError('DimensionSet already contains one or more of the dimensions to be added.')
+        return DimensionSet(dim_list=self.dim_list + added_dims)
+
+    def intersect_with(self, other: 'DimensionSet') -> 'DimensionSet':
+        intersection_letters = [dim.letter for dim in self.dim_list if dim.letter in other.letters]
+        return self.get_subset(intersection_letters)
+
+    def union_with(self, other: 'DimensionSet') -> 'DimensionSet':
+        added_dims = [dim for dim in other.dim_list if dim.letter not in self.letters]
+        return self.expand_by(added_dims)
 
     @property
     def names(self):
-        return tuple([dim.name for dim in self.dimensions])
+        return tuple([dim.name for dim in self.dim_list])
 
     @property
     def letters(self):
-        return tuple([dim.letter for dim in self.dimensions])
+        return tuple([dim.letter for dim in self.dim_list])
 
     @property
     def string(self):
         return "".join(self.letters)
 
     def index(self, key):
-        return [d.letter for d in self.dimensions].index(key)
+        return [d.letter for d in self.dim_list].index(key)

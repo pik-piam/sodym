@@ -10,12 +10,12 @@ dimensions = [
         {'name': 'place', 'letter': 'p', 'items': ['Earth', 'Sun', 'Moon', 'Venus']},
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
     ]
-dims = DimensionSet(dimensions=dimensions)
+dims = DimensionSet(dim_list=dimensions)
 values = np.random.rand(4, 3)
 numbers = NamedDimArray(name='two', dims=dims, values=values)
 
 animals = {'name': 'animal', 'letter': 'a', 'items': ['cat', 'mouse']}
-dims_incl_animals = DimensionSet(dimensions=dimensions+[animals])
+dims_incl_animals = DimensionSet(dim_list=dimensions+[animals])
 animal_values = np.random.rand(4, 3, 2)
 space_animals = NamedDimArray(name='space_animals', dims=dims_incl_animals, values=animal_values)
 
@@ -25,7 +25,7 @@ def test_named_dim_array_validations():
         {'name': 'place', 'letter': 'p', 'items': ['World', ]},
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
     ]
-    dims = DimensionSet(dimensions=dimensions)
+    dims = DimensionSet(dim_list=dimensions)
 
     # example with values with the correct shape
     NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3], ]))
@@ -52,7 +52,7 @@ def test_cast_to():
     assert_almost_equal(np.sum(casted_named_dim_array.values), 2 * np.sum(values))
 
     # example with differently ordered dimensions
-    target_dims = DimensionSet(dimensions=[animals]+dimensions[::-1])
+    target_dims = DimensionSet(dim_list=[animals]+dimensions[::-1])
     casted_named_dim_array = numbers.cast_to(target_dims=target_dims)
     assert casted_named_dim_array.values.shape == (2, 3, 4)
 
@@ -60,7 +60,7 @@ def test_cast_to():
 def test_sum_nda_to():
     # sum over one dimension
     summed_named_dim_array = space_animals.sum_nda_to(result_dims=('p', 't'))
-    assert summed_named_dim_array.dims == DimensionSet(dimensions=dimensions)
+    assert summed_named_dim_array.dims == DimensionSet(dim_list=dimensions)
     assert_array_almost_equal(summed_named_dim_array.values, np.sum(animal_values, axis=2))
 
     # sum over two dimensions
