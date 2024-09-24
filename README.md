@@ -20,8 +20,8 @@ sodym dependencies are managed with [poetry](https://python-poetry.org/), which 
 
 1. Clone the sodym repository using git.
 2. [Install poetry](https://python-poetry.org/docs/#installation)
-   - *Optional*: Configure poetry to create your virtual environment in the project folder via `poetry config virtualenvs.in-project true`
-3. From the project main directory, run 'python -m poetry install' to obtain all the necessary dependencies.
+   - *Optional*: Configure poetry to create your virtual environment in the project folder via<br>`poetry config virtualenvs.in-project true`
+3. From the project main directory, run `poetry install` to obtain all the necessary dependencies.
 
 To execute python commands using the virtual environment of this project, use `poetry run <command>`, or activate the environment via `[/path/to/].venv/Scripts/activate`.
 Further information can be found in the documentations of poetry and virtual environments linked above.

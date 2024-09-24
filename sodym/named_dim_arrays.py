@@ -90,6 +90,11 @@ class NamedDimArray(PydanticBaseModel):
     def shape(self):
         return self.dims.shape()
 
+    def set_values(self, values: np.ndarray):
+        assert isinstance(values, np.ndarray), "Values must be a numpy array."
+        assert values.shape == self.shape, "Values must have the same shape as the DimensionSet."
+        self.values = values
+
     def sum_values(self):
         return np.sum(self.values)
 
@@ -227,10 +232,12 @@ class NamedDimArray(PydanticBaseModel):
         slice_obj = self.sub_array_handler(keys)
         slice_obj.values_pointer[...] = item.sum_values_to(slice_obj.dim_letters)
 
-    def to_df(self):
-        index = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
-        df = index.to_frame(index=False)
-        df["value"] = self.values.flatten()
+    def to_df(self, index: bool = True):
+        multiindex = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
+        df = pd.DataFrame({'value': self.values.flatten()})
+        df = df.set_index(multiindex)
+        if not index:
+            df = df.reset_index()
         return df
 
     def split(self, dim_letter) -> dict:
@@ -417,11 +424,6 @@ class Flow(NamedDimArray):
 
     from_process: Process
     to_process: Process
-
-    @model_validator(mode="after")
-    def flow_name_related_to_proccesses(self):
-        self.name = f"{self.from_process.name} => {self.to_process.name}"
-        return self
 
     @property
     def from_process_id(self):
