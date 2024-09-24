@@ -1,4 +1,6 @@
 from matplotlib import pyplot as plt
+# import matplotlib
+# matplotlib.use('TkAgg')
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel
 import re
