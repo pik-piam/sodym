@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 from pydantic import BaseModel as PydanticBaseModel
 
 from ..mfa_system import MFASystem
+from .helper import to_valid_file_name
 
 
 class DataWriter(PydanticBaseModel):
@@ -28,8 +29,8 @@ class DataWriter(PydanticBaseModel):
         if not os.path.exists(export_directory):
             os.makedirs(export_directory)
         for flow_name, flow in mfa.flows.items():
-            path_out = os.path.join(export_directory, f'{flow_name.replace(" => ", "__2__")}.csv')
-            flow.to_df().to_csv(path_out, index=False)
+            path_out = os.path.join(export_directory, f'{to_valid_file_name(flow_name)}.csv')
+            flow.to_df().to_csv(path_out)
         logging.info(f'Data saved in directory {export_directory}')
 
     def export_mfa_stocks_to_csv(self, mfa: MFASystem, export_directory: str):
@@ -37,7 +38,7 @@ class DataWriter(PydanticBaseModel):
             os.makedirs(export_directory)
         for stock_name, stock in mfa.stocks.items():
             df = stock.stock.to_df()
-            path_out = os.path.join(export_directory, f'{stock_name}_stock.csv')
+            path_out = os.path.join(export_directory, f'{to_valid_file_name(stock_name)}_stock.csv')
             df.to_csv(path_out, index=False)
         logging.info(f'Data saved in directory {export_directory}')
 

@@ -18,6 +18,11 @@ plotly = "^5.18.0"
 pydantic = "^2.8.2"
 ruff = "^0.5.6"
 docformatter = "^1.7.5"
+openpyxl = "^3.1.5"
+nbformat = "^5.10.4"
+
+[tool.poetry.group.examples.dependencies]
+jupyter = "^1.1.1"
 
 [tool.poetry.group.test]
 optional = true
