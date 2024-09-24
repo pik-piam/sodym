@@ -24,6 +24,7 @@ optional = true
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.2"
+polyfactory = "^2.16.2"
 
 [tool.poetry.group.docs]
 optional = true

@@ -4,9 +4,20 @@ from .survival_functions import (
     FixedSurvival, FoldedNormalSurvival, NormalSurvival, LogNormalSurvival, WeibullSurvival,
 )
 from .named_dim_arrays import StockArray, Parameter, Process
-from .dimensions import DimensionSet
+from .named_dim_array_helper import named_dim_array_stack
+from .dimensions import Dimension, DimensionSet
 from .mfa_definition import StockDefinition
-from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, FlowDrivenStock
+from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, FlowDrivenStock, Stock
+
+
+def stock_stack(stocks: list[Stock], dimension: Dimension):
+    stacked_stock = named_dim_array_stack([stock.stock for stock in stocks], dimension=dimension)
+    stacked_inflow = named_dim_array_stack([stock.inflow for stock in stocks], dimension=dimension)
+    stacked_outflow = named_dim_array_stack([stock.outflow for stock in stocks], dimension=dimension)
+    return FlowDrivenStock(
+        stock=stacked_stock, inflow=stacked_inflow, outflow=stacked_outflow,
+        name=stocks[0].name, process=stocks[0].process,
+    )
 
 
 def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, process: Process):

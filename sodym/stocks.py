@@ -34,6 +34,13 @@ class Stock(PydanticBaseModel):
     def process_id(self) -> int:
         return self.process.id
 
+    def to_stock_type(self, desired_stock_type: type, **kwargs):
+        """Return an object of a new stock type with values and dimensions the same as the original.
+        **kwargs can be used to pass additional model attributes as required by the desired stock
+        type, if these are not contained in the original stock type.
+        """
+        return desired_stock_type(**self.__dict__, **kwargs)
+
     def check_stock_balance(self):
         balance = self.get_stock_balance()
         balance = np.max(np.abs(balance).sum(axis=0))
