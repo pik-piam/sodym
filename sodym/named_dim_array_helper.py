@@ -8,10 +8,8 @@ def named_dim_array_stack(named_dim_arrays: list[NamedDimArray], dimension: Dime
     Method can be applied to `NamedDimArray`s, `StockArray`s, `Parameter`s and `Flow`s.
     """
     named_dim_array0 = named_dim_arrays[0]
-    extended_dimensions = DimensionSet(dimensions=named_dim_array0.dims.dimensions+[dimension])
-    attrs = named_dim_array0.__dict__
-    attrs = {k: v for k, v in attrs.items() if k not in ['values', 'dims']}
-    extended = named_dim_array0.__class__(dims=extended_dimensions, **attrs)
+    extended_dimensions = named_dim_array0.dims.expand_by([dimension])
+    extended = NamedDimArray(dims=extended_dimensions)
     for item, nda in zip(dimension.items, named_dim_arrays):
         extended[{dimension.letter: item}] = nda
     return extended

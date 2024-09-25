@@ -90,6 +90,11 @@ class NamedDimArray(PydanticBaseModel):
     def shape(self):
         return self.dims.shape()
 
+    def set_values(self, values: np.ndarray):
+        assert isinstance(values, np.ndarray), "Values must be a numpy array."
+        assert values.shape == self.shape, "Values must have the same shape as the DimensionSet."
+        self.values = values
+
     def sum_values(self):
         return np.sum(self.values)
 
@@ -138,44 +143,29 @@ class NamedDimArray(PydanticBaseModel):
             other = NamedDimArray(dims=self.dims, values=other * np.ones(self.shape))
         return other
 
-    def intersect_dims_with(self, other):
-        matching_dims = []
-        for dim in self.dims.dimensions:
-            if dim.letter in other.dims.letters:
-                matching_dims.append(dim)
-        return DimensionSet(dimensions=matching_dims)
-
-    def union_dims_with(self, other):
-        all_dims = copy(self.dims.dimensions)
-        letters_self = self.dims.letters
-        for dim in other.dims.dimensions:
-            if dim.letter not in letters_self:
-                all_dims.append(dim)
-        return DimensionSet(dimensions=all_dims)
-
     def __add__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
             dims=dims_out, values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
         )
 
     def __sub__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
             dims=dims_out, values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
         )
 
     def __mul__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.union_dims_with(other)
+        dims_out = self.dims.union_with(other.dims)
         values_out = np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values)
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __truediv__(self, other):
         other = self._prepare_other(other)
-        dims_out = self.union_dims_with(other)
+        dims_out = self.dims.union_with(other.dims)
         values_out = np.einsum(
             f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1.0 / other.values
         )
@@ -183,13 +173,13 @@ class NamedDimArray(PydanticBaseModel):
 
     def minimum(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         values_out = np.minimum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def maximum(self, other):
         other = self._prepare_other(other)
-        dims_out = self.intersect_dims_with(other)
+        dims_out = self.dims.intersect_with(other.dims)
         values_out = np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
@@ -227,10 +217,12 @@ class NamedDimArray(PydanticBaseModel):
         slice_obj = self.sub_array_handler(keys)
         slice_obj.values_pointer[...] = item.sum_values_to(slice_obj.dim_letters)
 
-    def to_df(self):
-        index = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
-        df = index.to_frame(index=False)
-        df["value"] = self.values.flatten()
+    def to_df(self, index: bool = True):
+        multiindex = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
+        df = pd.DataFrame({'value': self.values.flatten()})
+        df = df.set_index(multiindex)
+        if not index:
+            df = df.reset_index()
         return df
 
     def split(self, dim_letter) -> dict:
@@ -295,7 +287,7 @@ class SubArrayHandler:
                 "docstring."
             )
         dict_out = None
-        for d in self.nda.dims.dimensions:
+        for d in self.nda.dims:
             if item in d.items:
                 if dict_out is not None:
                     raise ValueError(
@@ -346,7 +338,7 @@ class SubArrayHandler:
         assert (
             not self.has_dim_with_several_items
         ), "Cannot convert to NamedDimArray if there are dimensions with several items"
-        
+
         return NamedDimArray(dims=self.dims, values=self.values_pointer, name=self.nda.name)
 
     def _init_ids(self):
@@ -417,11 +409,6 @@ class Flow(NamedDimArray):
 
     from_process: Process
     to_process: Process
-
-    @model_validator(mode="after")
-    def flow_name_related_to_proccesses(self):
-        self.name = f"{self.from_process.name} => {self.to_process.name}"
-        return self
 
     @property
     def from_process_id(self):

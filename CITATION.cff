@@ -1,0 +1,12 @@
+cff-version: 0.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Dürrwächter
+    given-names: Jakob
+  - family-names: Dacie
+    given-names: Sally
+  - family-names: Hosak
+    given-names: Merlin
+title: "SODYM"
+version: 0.1.0
+date-released: 2024-09-23

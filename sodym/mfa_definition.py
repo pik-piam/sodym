@@ -53,6 +53,7 @@ class FlowDefinition(DefinitionWithDimLetters):
 
     from_process_name: str = Field(validation_alias=AliasChoices("from_process_name", "from_process"))
     to_process_name: str = Field(validation_alias=AliasChoices("to_process_name", "to_process"))
+    name_override: Optional[str] = None
 
 
 class StockDefinition(DefinitionWithDimLetters):
