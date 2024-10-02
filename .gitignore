@@ -5,3 +5,4 @@
 dist/
 docs/build
 docs/source/_autosummary
+poetry.lock
