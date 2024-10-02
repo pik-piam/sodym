@@ -88,38 +88,38 @@ class MFASystem(PydanticBaseModel):
         The process with ID 0 is the system boundary.
         Its mass balance serves as a mass balance of the whole system."""
 
-        # start of with largest possible dimensionality;
+        # start of with minimum possible dimensionality;
         # addition and subtraction will automatically reduce to the maximum shape, i.e. the dimensions contained in all
         # flows to and from the process
-        balance = [0.0 for _ in self.processes]
-        total = [0.0 for _ in self.processes]
+        balance = {p : 0.0 for p in self.processes.keys()}
+        total = {p : 0.0 for p in self.processes.keys()}
 
         # Add flows to mass balance
         for flow in (
             self.flows.values()
         ):  # values refers here to the values of the flows dictionary which are the Flows themselves
-            balance[flow.from_process_id] -= flow  # Subtract flow from start process
-            balance[flow.to_process_id] += flow  # Add flow to end process
-            total[flow.from_process_id] += flow  # Add flow to total of start process
-            total[flow.to_process_id] += flow  # Add flow to total of end process
+            balance[flow.from_process.name] -= flow  # Subtract flow from start process
+            balance[flow.to_process.name] += flow  # Add flow to end process
+            total[flow.from_process.name] += flow  # Add flow to total of start process
+            total[flow.to_process.name] += flow  # Add flow to total of end process
 
         # Add stock changes to the mass balance
         for stock in self.stocks.values():
             if stock.process_id is None:  # not connected to a process
                 continue
-            balance[stock.process_id] -= stock.inflow
-            balance[0] += (
+            balance[stock.process.name] -= stock.inflow
+            balance['sysenv'] += (
                 stock.inflow
             )  # subtract stock changes to process with number 0 (system boundary) for mass balance of whole system
-            balance[stock.process_id] += stock.outflow
-            balance[0] -= (
+            balance[stock.process.name] += stock.outflow
+            balance['sysenv'] -= (
                 stock.outflow
             )  # add stock changes to process with number 0 (system boundary) for mass balance of whole system
 
-            total[flow.from_process_id] += stock.inflow
-            total[flow.to_process_id] += stock.outflow
+            total[flow.from_process.name] += stock.inflow
+            total[flow.to_process.name] += stock.outflow
 
-        relative_balance = [(b / (t + 1.0e-9)).values for b, t in zip(balance, total)]
+        relative_balance = {p_name : (balance[p_name] / (total[p_name] + 1.0e-9)).values for p_name in self.processes}
 
         return relative_balance
 
@@ -130,15 +130,15 @@ class MFASystem(PydanticBaseModel):
         print("Checking mass balance...")
         # returns array with dim [t, process, e]
         relative_balance = self.get_relative_mass_balance()  # assume no error if total sum is 0
-        id_failed = [
-            np.any(balance_percentage > 0.1) for balance_percentage in relative_balance
-        ]  # error is bigger than 0.1 %
+        id_failed = {
+            p_name : np.any(balance_percentage > 0.1) for p_name, balance_percentage in relative_balance.items()
+        }  # error is bigger than 0.1 %
         messages_failed = [
-            f"{p.name} ({np.max(relative_balance[p.id])*100:.2f}% error)"
-            for p in self.processes.values()
-            if id_failed[p.id]
+            f"{p_name} ({np.max(relative_balance[p_name])*100:.2f}% error)"
+            for p_name in self.processes.keys()
+            if id_failed[p_name] and p_name!='sysenv'
         ]
-        if np.any(np.array(id_failed[1:])):
+        if any(id_failed.values()):
             raise RuntimeError(f"Error, Mass Balance fails for processes {', '.join(messages_failed)}")
         else:
             print("Success - Mass balance consistent!")
