@@ -121,14 +121,14 @@ class MFASystem(PydanticBaseModel):
 
         return totals
 
-    def get_relative_mass_balance(self):
+    def get_relative_mass_balance(self, epsilon=1e-9):
         """Determines a relative mass balance for each process of the MFA system,
         by dividing the mass balances by the mass totals.
         """
         balances = self.get_mass_balance()
         totals = self.get_mass_totals()
         relative_balance = {
-            p_name : (balances[p_name] / (totals[p_name] + 1.0e-9)).values
+            p_name : (balances[p_name] / (totals[p_name] + epsilon)).values
             for p_name in self.processes
         }
         return relative_balance
