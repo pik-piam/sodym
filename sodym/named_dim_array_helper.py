@@ -1,5 +1,7 @@
+from copy import deepcopy
+
 from .named_dim_arrays import NamedDimArray
-from .dimensions import Dimension, DimensionSet
+from .dimensions import Dimension
 
 
 def named_dim_array_stack(named_dim_arrays: list[NamedDimArray], dimension: Dimension) -> NamedDimArray:
@@ -13,3 +15,10 @@ def named_dim_array_stack(named_dim_arrays: list[NamedDimArray], dimension: Dime
     for item, nda in zip(dimension.items, named_dim_arrays):
         extended[{dimension.letter: item}] = nda
     return extended
+
+
+def sum_named_dim_arrays(named_dim_arrays: list[NamedDimArray]) -> NamedDimArray:
+    result = deepcopy(named_dim_arrays[0])
+    for nda in named_dim_arrays[1:]:
+        result += nda
+    return result

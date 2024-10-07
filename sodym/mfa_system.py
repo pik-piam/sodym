@@ -7,6 +7,7 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 from .mfa_definition import MFADefinition
 from .dimensions import DimensionSet
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
+from .named_dim_array_helper import sum_named_dim_arrays
 from .stocks import Stock
 from .stock_helper import make_empty_stocks
 from .flow_helper import make_empty_flows
@@ -74,59 +75,60 @@ class MFASystem(PydanticBaseModel):
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
         return NamedDimArray(dims=dims, **kwargs)
 
-    def get_mass_balance(self):
-        """The mass balance of a process is calculated as the sum of
-        - all flows entering subtracted by all flows leaving (-) the process
+    def get_mass_contributions(self):
+        """List all contributions to the mass balance of each process:
+        - all flows entering are positive
+        - all flows leaving are negative
         - the stock change of the process
-        Start with minimum possible dimensionality;
-        addition and subtraction will automatically reduce to the maximum shape,
-        i.e. the dimensions contained in all flows to and from the process.
         """
-        balance = {p : 0.0 for p in self.processes.keys()}
+        contributions = {p : [] for p in self.processes.keys()}
 
         # Add flows to mass balance
         for flow in self.flows.values():
-            balance[flow.from_process.name] -= flow  # Subtract flow from start process
-            balance[flow.to_process.name] += flow  # Add flow to end process
+            contributions[flow.from_process.name].append(-flow)  # Subtract flow from start process
+            contributions[flow.to_process.name].append(flow)  # Add flow to end process
 
         # Add stock changes to the mass balance
         for stock in self.stocks.values():
             if stock.process_id is None:  # not connected to a process
                 continue
             # add/subtract stock changes to processes
-            balance[stock.process.name] -= stock.inflow
-            balance[stock.process.name] += stock.outflow
+            contributions[stock.process.name].append(-stock.inflow)
+            contributions[stock.process.name].append(stock.outflow)
             # add/subtract stock changes in system boundary for mass balance of whole system
-            balance['sysenv'] += stock.inflow
-            balance['sysenv'] -= stock.outflow
+            contributions['sysenv'].append(stock.inflow)
+            contributions['sysenv'].append(-stock.outflow)
 
-        return balance
+        return contributions
 
-    def get_mass_totals(self):
-        """The total mass of a process is caluclated as the sum of
-        - all flows entering and leaving the process
-        - the stock change of the process
+    def get_mass_balance(self, contributions: dict={}):
+        """Calculate the mass balance for each process, by summing the contributions.
+        The sum returns a :py:class:`sodym.named_dim_arrays.NamedDimArray`,
+        with the dimensions common to all contributions.
         """
-        totals = {p : 0.0 for p in self.processes.keys()}
+        if not contributions:
+            contributions = self.get_mass_contributions()
+        return {p_name: sum_named_dim_arrays(parts) for p_name, parts in contributions.items()}
 
-        for flow in self.flows.values():
-            totals[flow.from_process.name] += flow  # Add flow to total of start process
-            totals[flow.to_process.name] += flow  # Add flow to total of end process
-
-        for stock in self.stocks.values():
-            if stock.process_id is None:  # not connected to a process
-                continue
-            totals[stock.process.name] += stock.inflow
-            totals[stock.process.name] += stock.outflow
-
-        return totals
+    def get_mass_totals(self, contributions: dict={}):
+        """Calculate the total mass of a process by summing the absolute values of all
+        the contributions.
+        """
+        if not contributions:
+            contributions = self.get_mass_contributions()
+        return {
+            p_name: sum_named_dim_arrays([abs(part) for part in parts])
+            for p_name, parts in contributions.items()
+        }
 
     def get_relative_mass_balance(self, epsilon=1e-9):
         """Determines a relative mass balance for each process of the MFA system,
         by dividing the mass balances by the mass totals.
         """
-        balances = self.get_mass_balance()
-        totals = self.get_mass_totals()
+        mass_contributions = self.get_mass_contributions()
+        balances = self.get_mass_balance(contributions=mass_contributions)
+        totals = self.get_mass_totals(contributions=mass_contributions)
+
         relative_balance = {
             p_name : (balances[p_name] / (totals[p_name] + epsilon)).values
             for p_name in self.processes
