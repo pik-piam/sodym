@@ -62,12 +62,20 @@ class DataWriter(PydanticBaseModel):
         region_id = 0
         carbon_only = True
 
+        # Get product dim letter
+        mfa_dim_letters = mfa.dims.letters
+        if 'm' in mfa_dim_letters:
+            product_dim_letter = 'm'
+        elif 'g' in mfa_dim_letters:
+            product_dim_letter = 'g'
+        assert 'product_dim_letter' in locals()
+
         nodes = [p for p in mfa.processes.values() if p.name not in exclude_nodes]
         ids_in_sankey = {p.id: i for i, p in enumerate(nodes)}
         exclude_node_ids = [p.id for p in mfa.processes.values() if p.name in exclude_nodes]
 
         if self.sankey["color_scheme"] == "blueish":
-            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims['m'].len)]
+            material_colors = [f"hsv({10 * i + 200},40,150)" for i in range(mfa.dims[product_dim_letter].len)]
 #        elif color_scheme == "antique":
 #            material_colors = pl.colors.qualitative.Antique[: mfa.dims[cfg.product_dimension_name].len]
 #        elif color_scheme == "viridis":
@@ -82,8 +90,6 @@ class DataWriter(PydanticBaseModel):
         def add_link(**kwargs):
             for key, value in kwargs.items():
                 link_dict[key].append(value)
-
-        product_dim_letter = 'm'
 
         for f in mfa.flows.values():
             if (
