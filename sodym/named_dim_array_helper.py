@@ -1,5 +1,5 @@
 from .named_dim_arrays import NamedDimArray
-from .dimensions import Dimension, DimensionSet
+from .dimensions import Dimension
 
 
 def named_dim_array_stack(named_dim_arrays: list[NamedDimArray], dimension: Dimension) -> NamedDimArray:

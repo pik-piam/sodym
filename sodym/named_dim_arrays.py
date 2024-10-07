@@ -186,6 +186,9 @@ class NamedDimArray(PydanticBaseModel):
     def __neg__(self):
         return NamedDimArray(dims=self.dims, values=-self.values)
 
+    def __abs__(self):
+        return NamedDimArray(dims=self.dims, values=abs(self.values))
+
     def __radd__(self, other):
         return self + other
 

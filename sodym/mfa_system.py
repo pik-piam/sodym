@@ -7,6 +7,7 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 from .mfa_definition import MFADefinition
 from .dimensions import DimensionSet
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
+from .named_dim_array_helper import sum_named_dim_arrays
 from .stocks import Stock
 from .stock_helper import make_empty_stocks
 from .flow_helper import make_empty_flows
@@ -74,65 +75,74 @@ class MFASystem(PydanticBaseModel):
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
         return NamedDimArray(dims=dims, **kwargs)
 
-    def get_relative_mass_balance(self):
-        """Determines a relative mass balance for each process of the MFA system.
-
-        The mass balance of a process is calculated as the sum of
-        - all flows entering subtracted by all flows leaving (-) the process
+    def get_mass_contributions(self):
+        """List all contributions to the mass balance of each process:
+        - all flows entering are positive
+        - all flows leaving are negative
         - the stock change of the process
-
-        The total mass of a process is caluclated as the sum of
-        - all flows entering and leaving the process
-        - the stock change of the process
-
-        The process with ID 0 is the system boundary.
-        Its mass balance serves as a mass balance of the whole system."""
-
-        # start of with minimum possible dimensionality;
-        # addition and subtraction will automatically reduce to the maximum shape, i.e. the dimensions contained in all
-        # flows to and from the process
-        balance = {p : 0.0 for p in self.processes.keys()}
-        total = {p : 0.0 for p in self.processes.keys()}
+        """
+        contributions = {p : [] for p in self.processes.keys()}
 
         # Add flows to mass balance
-        for flow in (
-            self.flows.values()
-        ):  # values refers here to the values of the flows dictionary which are the Flows themselves
-            balance[flow.from_process.name] -= flow  # Subtract flow from start process
-            balance[flow.to_process.name] += flow  # Add flow to end process
-            total[flow.from_process.name] += flow  # Add flow to total of start process
-            total[flow.to_process.name] += flow  # Add flow to total of end process
+        for flow in self.flows.values():
+            contributions[flow.from_process.name].append(-flow)  # Subtract flow from start process
+            contributions[flow.to_process.name].append(flow)  # Add flow to end process
 
         # Add stock changes to the mass balance
         for stock in self.stocks.values():
             if stock.process_id is None:  # not connected to a process
                 continue
-            balance[stock.process.name] -= stock.inflow
-            balance['sysenv'] += (
-                stock.inflow
-            )  # subtract stock changes to process with number 0 (system boundary) for mass balance of whole system
-            balance[stock.process.name] += stock.outflow
-            balance['sysenv'] -= (
-                stock.outflow
-            )  # add stock changes to process with number 0 (system boundary) for mass balance of whole system
+            # add/subtract stock changes to processes
+            contributions[stock.process.name].append(-stock.inflow)
+            contributions[stock.process.name].append(stock.outflow)
+            # add/subtract stock changes in system boundary for mass balance of whole system
+            contributions['sysenv'].append(stock.inflow)
+            contributions['sysenv'].append(-stock.outflow)
 
-            total[flow.from_process.name] += stock.inflow
-            total[flow.to_process.name] += stock.outflow
+        return contributions
 
-        relative_balance = {p_name : (balance[p_name] / (total[p_name] + 1.0e-9)).values for p_name in self.processes}
+    def get_mass_balance(self, contributions: dict={}):
+        """Calculate the mass balance for each process, by summing the contributions.
+        The sum returns a :py:class:`sodym.named_dim_arrays.NamedDimArray`,
+        with the dimensions common to all contributions.
+        """
+        if not contributions:
+            contributions = self.get_mass_contributions()
+        return {p_name: sum(parts) for p_name, parts in contributions.items()}
 
+    def get_mass_totals(self, contributions: dict={}):
+        """Calculate the total mass of a process by summing the absolute values of all
+        the contributions.
+        """
+        if not contributions:
+            contributions = self.get_mass_contributions()
+        return {
+            p_name: sum([abs(part) for part in parts])
+            for p_name, parts in contributions.items()
+        }
+
+    def get_relative_mass_balance(self, epsilon=1e-9):
+        """Determines a relative mass balance for each process of the MFA system,
+        by dividing the mass balances by the mass totals.
+        """
+        mass_contributions = self.get_mass_contributions()
+        balances = self.get_mass_balance(contributions=mass_contributions)
+        totals = self.get_mass_totals(contributions=mass_contributions)
+
+        relative_balance = {
+            p_name : (balances[p_name] / (totals[p_name] + epsilon)).values
+            for p_name in self.processes
+        }
         return relative_balance
 
-    def check_mass_balance(self):
+    def check_mass_balance(self, tolerance=1e-4):
         """Compute mass balance, and check whether it is within a certain tolerance.
         Throw an error if it isn't."""
 
         print("Checking mass balance...")
         # returns array with dim [t, process, e]
         relative_balance = self.get_relative_mass_balance()  # assume no error if total sum is 0
-        id_failed = {
-            p_name : np.any(balance_percentage > 0.1) for p_name, balance_percentage in relative_balance.items()
-        }  # error is bigger than 0.1 %
+        id_failed = {p_name : np.any(rb > tolerance) for p_name, rb in relative_balance.items()}
         messages_failed = [
             f"{p_name} ({np.max(relative_balance[p_name])*100:.2f}% error)"
             for p_name in self.processes.keys()
