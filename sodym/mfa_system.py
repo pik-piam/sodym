@@ -74,53 +74,63 @@ class MFASystem(PydanticBaseModel):
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
         return NamedDimArray(dims=dims, **kwargs)
 
-    def get_relative_mass_balance(self):
-        """Determines a relative mass balance for each process of the MFA system.
-
-        The mass balance of a process is calculated as the sum of
+    def get_mass_balance(self):
+        """The mass balance of a process is calculated as the sum of
         - all flows entering subtracted by all flows leaving (-) the process
         - the stock change of the process
-
-        The total mass of a process is caluclated as the sum of
-        - all flows entering and leaving the process
-        - the stock change of the process
-
-        The process with ID 0 is the system boundary.
-        Its mass balance serves as a mass balance of the whole system."""
-
-        # start of with minimum possible dimensionality;
-        # addition and subtraction will automatically reduce to the maximum shape, i.e. the dimensions contained in all
-        # flows to and from the process
+        Start with minimum possible dimensionality;
+        addition and subtraction will automatically reduce to the maximum shape,
+        i.e. the dimensions contained in all flows to and from the process.
+        """
         balance = {p : 0.0 for p in self.processes.keys()}
-        total = {p : 0.0 for p in self.processes.keys()}
 
         # Add flows to mass balance
-        for flow in (
-            self.flows.values()
-        ):  # values refers here to the values of the flows dictionary which are the Flows themselves
+        for flow in self.flows.values():
             balance[flow.from_process.name] -= flow  # Subtract flow from start process
             balance[flow.to_process.name] += flow  # Add flow to end process
-            total[flow.from_process.name] += flow  # Add flow to total of start process
-            total[flow.to_process.name] += flow  # Add flow to total of end process
 
         # Add stock changes to the mass balance
         for stock in self.stocks.values():
             if stock.process_id is None:  # not connected to a process
                 continue
+            # add/subtract stock changes to processes
             balance[stock.process.name] -= stock.inflow
-            balance['sysenv'] += (
-                stock.inflow
-            )  # subtract stock changes to process with number 0 (system boundary) for mass balance of whole system
             balance[stock.process.name] += stock.outflow
-            balance['sysenv'] -= (
-                stock.outflow
-            )  # add stock changes to process with number 0 (system boundary) for mass balance of whole system
+            # add/subtract stock changes in system boundary for mass balance of whole system
+            balance['sysenv'] += stock.inflow
+            balance['sysenv'] -= stock.outflow
 
-            total[flow.from_process.name] += stock.inflow
-            total[flow.to_process.name] += stock.outflow
+        return balance
 
-        relative_balance = {p_name : (balance[p_name] / (total[p_name] + 1.0e-9)).values for p_name in self.processes}
+    def get_mass_totals(self):
+        """The total mass of a process is caluclated as the sum of
+        - all flows entering and leaving the process
+        - the stock change of the process
+        """
+        totals = {p : 0.0 for p in self.processes.keys()}
 
+        for flow in self.flows.values():
+            totals[flow.from_process.name] += flow  # Add flow to total of start process
+            totals[flow.to_process.name] += flow  # Add flow to total of end process
+
+        for stock in self.stocks.values():
+            if stock.process_id is None:  # not connected to a process
+                continue
+            totals[stock.process.name] += stock.inflow
+            totals[stock.process.name] += stock.outflow
+
+        return totals
+
+    def get_relative_mass_balance(self):
+        """Determines a relative mass balance for each process of the MFA system,
+        by dividing the mass balances by the mass totals.
+        """
+        balances = self.get_mass_balance()
+        totals = self.get_mass_totals()
+        relative_balance = {
+            p_name : (balances[p_name] / (totals[p_name] + 1.0e-9)).values
+            for p_name in self.processes
+        }
         return relative_balance
 
     def check_mass_balance(self):
