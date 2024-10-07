@@ -133,16 +133,14 @@ class MFASystem(PydanticBaseModel):
         }
         return relative_balance
 
-    def check_mass_balance(self):
+    def check_mass_balance(self, tolerance=1e-4):
         """Compute mass balance, and check whether it is within a certain tolerance.
         Throw an error if it isn't."""
 
         print("Checking mass balance...")
         # returns array with dim [t, process, e]
         relative_balance = self.get_relative_mass_balance()  # assume no error if total sum is 0
-        id_failed = {
-            p_name : np.any(balance_percentage > 0.1) for p_name, balance_percentage in relative_balance.items()
-        }  # error is bigger than 0.1 %
+        id_failed = {p_name : np.any(rb > tolerance) for p_name, rb in relative_balance.items()}
         messages_failed = [
             f"{p_name} ({np.max(relative_balance[p_name])*100:.2f}% error)"
             for p_name in self.processes.keys()
