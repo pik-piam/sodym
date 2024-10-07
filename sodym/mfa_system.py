@@ -108,7 +108,7 @@ class MFASystem(PydanticBaseModel):
         """
         if not contributions:
             contributions = self.get_mass_contributions()
-        return {p_name: sum_named_dim_arrays(parts) for p_name, parts in contributions.items()}
+        return {p_name: sum(parts) for p_name, parts in contributions.items()}
 
     def get_mass_totals(self, contributions: dict={}):
         """Calculate the total mass of a process by summing the absolute values of all
@@ -117,7 +117,7 @@ class MFASystem(PydanticBaseModel):
         if not contributions:
             contributions = self.get_mass_contributions()
         return {
-            p_name: sum_named_dim_arrays([abs(part) for part in parts])
+            p_name: sum([abs(part) for part in parts])
             for p_name, parts in contributions.items()
         }
 
