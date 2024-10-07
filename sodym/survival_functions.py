@@ -2,21 +2,20 @@ from abc import abstractmethod
 import numpy as np
 import scipy.stats
 
-
 from sodym.dimensions import DimensionSet
+from sodym.named_dim_arrays import NamedDimArray
 
 
 class SurvivalModel():
     """Contains shared functionality across the various survival models."""
-    def __init__(
-        self,
-        dims: DimensionSet,
-        time_letter: str='t',
-        **kwargs
-    ):
+    def __init__(self, dims: DimensionSet, time_letter: str='t', **kwargs):
         self.t = np.array(dims[time_letter].items)
+        if not dims.dim_list[0].letter == time_letter:
+            raise ValueError(
+                f"The time dimension {time_letter} must be the first dimension in the set."
+            )
         self.shape = dims.shape()
-        self.n_t = list(self.shape)[0]
+        self.n_t = len(self.t)
         self.shape_cohort = (self.n_t,) + self.shape
         self.shape_no_t = tuple(list(self.shape)[1:])
         self.sf = self.survival_function(**kwargs)
@@ -75,6 +74,11 @@ class SurvivalModel():
 class FixedSurvival(SurvivalModel):
     """Fixed lifetime, age-cohort leaves the stock in the model year when a certain age,
     specified as 'Mean', is reached."""
+    def __init__(
+        self, dims: DimensionSet, lifetime_mean: NamedDimArray, time_letter: str = 't', **kwargs,
+    ):
+        lifetime_mean = lifetime_mean.cast_to(target_dims=dims)
+        super().__init__(dims, time_letter, lifetime_mean=lifetime_mean.values)
 
     def survival_function_by_year_id(self, m, lifetime_mean, **kwargs):
         # Example: if lt is 3.5 years fixed, product will still be there after 0, 1, 2, and 3 years,
@@ -82,7 +86,19 @@ class FixedSurvival(SurvivalModel):
         return (self.remaining_ages(m) < lifetime_mean[m, ...]).astype(int)
 
 
-class NormalSurvival(SurvivalModel):
+class StandardDeviationSurivalModel(SurvivalModel):
+   def __init__(
+        self, dims: DimensionSet, lifetime_mean: NamedDimArray, lifetime_std: NamedDimArray,
+        time_letter: str = 't'
+    ):
+        lifetime_mean = lifetime_mean.cast_to(target_dims=dims)
+        lifetime_std = lifetime_std.cast_to(target_dims=dims)
+        super().__init__(
+            dims, time_letter, lifetime_mean=lifetime_mean.values, lifetime_std=lifetime_std.values
+        )
+
+
+class NormalSurvival(StandardDeviationSurivalModel):
     """Normally distributed lifetime with mean and standard deviation.
     Watch out for nonzero values, for negative ages, no correction or truncation done here.
     NOTE: As normal distributions have nonzero pdf for negative ages,
@@ -91,7 +107,7 @@ class NormalSurvival(SurvivalModel):
     the latter being implemented in the method compute compute_o_c_from_s_c.
     As alternative, use lognormal or folded normal distribution options.
     """
-    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         if np.min(lifetime_mean) < 0:
             raise ValueError('lifetime_mean must be greater than zero.')
 
@@ -102,12 +118,12 @@ class NormalSurvival(SurvivalModel):
         )
 
 
-class FoldedNormalSurvival(SurvivalModel):
+class FoldedNormalSurvival(StandardDeviationSurivalModel):
     """Folded normal distribution, cf. https://en.wikipedia.org/wiki/Folded_normal_distribution
     NOTE: call this with the parameters of the normal distribution mu and sigma of curve
     BEFORE folding, curve after folding will have different mu and sigma.
     """
-    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         if np.min(lifetime_mean) < 0:
             raise ValueError('lifetime_mean must be greater than zero.')
 
@@ -119,7 +135,7 @@ class FoldedNormalSurvival(SurvivalModel):
         )
 
 
-class LogNormalSurvival(SurvivalModel):
+class LogNormalSurvival(StandardDeviationSurivalModel):
     """Lognormal distribution
     Here, the mean and stddev of the lognormal curve, not those of the underlying normal
     distribution, need to be specified!
@@ -127,7 +143,7 @@ class LogNormalSurvival(SurvivalModel):
     https://docs.scipy.org/doc/scipy-0.13.0/reference/generated/scipy.stats.lognorm.html
     Same result as EXCEL function "=LOGNORM.VERT(x;LT_LN;SG_LN;TRUE)"
     """
-    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std, **kwargs):
+    def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         # calculate parameter mu of underlying normal distribution:
         lt_ln = np.log(
             lifetime_mean[m, ...]
@@ -151,6 +167,19 @@ class LogNormalSurvival(SurvivalModel):
 
 class WeibullSurvival(SurvivalModel):
     """Weibull distribution with standard definition of scale and shape parameters."""
+    def __init__(
+        self, dims: DimensionSet, lifetime_shape: NamedDimArray, lifetime_scale: NamedDimArray,
+        time_letter: str = 't'
+    ):
+        lifetime_shape = lifetime_shape.cast_to(target_dims=dims)
+        lifetime_scale = lifetime_scale.cast_to(target_dims=dims)
+        super().__init__(
+            dims=dims,
+            time_letter=time_letter,
+            lifetime_shape=lifetime_shape.values,
+            lifetime_scale=lifetime_scale.values
+        )
+
     def survival_function(self, m, lifetime_shape, lifetime_scale, **kwargs):
         if np.min(lifetime_shape) < 0:
             raise ValueError("Lifetime shape must be positive for Weibull distribution.")
