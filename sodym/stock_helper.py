@@ -67,7 +67,6 @@ def create_dynamic_stock(
     if stock is None and inflow is None:
         raise ValueError('Either stock or inflow must be passed to create a dynamic stock object.')
     dims = stock.dims if stock is not None else inflow.dims
-    lifetime_mean, lifetime_std = cast_lifetime(lifetime_mean, lifetime_std, dims)
     survival_model = get_survival_model(ldf_type)(
         dims=dims, lifetime_mean=lifetime_mean, lifetime_std=lifetime_std, time_letter=time_letter
     )
@@ -83,13 +82,6 @@ def create_dynamic_stock(
             name=name, process=process, process_name=process_name,
             inflow=inflow, survival_model=survival_model
         )
-
-
-def cast_lifetime(lifetime_mean: Parameter, lifetime_std: Parameter, dims: DimensionSet):
-    """Duplicates lifetime mean and standard deviation values for additional dimensions."""
-    lifetime_mean_values = lifetime_mean.cast_values_to(dims)
-    lifetime_std_values = lifetime_std.cast_values_to(dims)
-    return lifetime_mean_values, lifetime_std_values
 
 
 def get_survival_model(ldf_type: str):
