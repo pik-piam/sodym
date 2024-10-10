@@ -18,6 +18,7 @@ MFA model and components
    sodym.data_reader
    sodym.dimension
    sodym.named_dim_arrays
+   sodym.flow_helper
 
 Stocks
 ~~~~~~
@@ -34,3 +35,5 @@ Data writing and plotting
    :maxdepth: 1
 
    sodym.export.data_writer
+   sodym.export.array_plotter
+   sodym.export.sankey

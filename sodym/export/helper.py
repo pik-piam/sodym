@@ -18,6 +18,10 @@ def to_valid_file_name(value: str) -> str:
 
 
 class CustomNameDisplayer(PydanticBaseModel):
+    """
+    Parameters:
+        display_names: Dictionary for string replacement in figures. All strings not in this dictionary will be displayed as is.
+    """
 
     display_names: Optional[dict] = {}
 

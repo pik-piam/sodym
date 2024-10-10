@@ -36,7 +36,7 @@ class Stock(PydanticBaseModel):
 
     def to_stock_type(self, desired_stock_type: type, **kwargs):
         """Return an object of a new stock type with values and dimensions the same as the original.
-        **kwargs can be used to pass additional model attributes as required by the desired stock
+        `**kwargs` can be used to pass additional model attributes as required by the desired stock
         type, if these are not contained in the original stock type.
         """
         return desired_stock_type(**self.__dict__, **kwargs)
@@ -106,7 +106,7 @@ class InflowDrivenDSM(DynamicStockModel):
         outflow_by_cohort = self.compute_outflow_by_cohort(stock_by_cohort)
         stock_vals = stock_by_cohort.sum(axis=1)
         outflow_vals = outflow_by_cohort.sum(axis=1)
-    
+
         self.stock = StockArray(
             dims=self.inflow.dims, values=stock_vals, name=f'{self.name}_stock',
         )

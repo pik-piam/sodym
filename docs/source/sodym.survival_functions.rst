@@ -5,9 +5,9 @@ Survival functions
 .. autosummary::
    :toctree: _autosummary
 
-  SurvivalModel
-  FixedSurvival
-  NormalSurvival
-  FoldedNormalSurvival
-  LogNormalSurvival
-  WeibullSurvival
+   SurvivalModel
+   FixedSurvival
+   NormalSurvival
+   FoldedNormalSurvival
+   LogNormalSurvival
+   WeibullSurvival
