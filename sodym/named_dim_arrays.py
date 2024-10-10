@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from copy import copy, deepcopy
+from copy import deepcopy
 from collections import defaultdict
 import numpy as np
 import pandas as pd

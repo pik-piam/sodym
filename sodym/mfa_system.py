@@ -7,7 +7,6 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 from .mfa_definition import MFADefinition
 from .dimensions import DimensionSet
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
-from .named_dim_array_helper import sum_named_dim_arrays
 from .stocks import Stock
 from .stock_helper import make_empty_stocks
 from .flow_helper import make_empty_flows
@@ -16,7 +15,7 @@ from .data_reader import DataReader
 
 class MFASystem(PydanticBaseModel):
     """An MFASystem class handles the calculation of a Material Flow Analysis system, which
-    consists of a set of processes, flows, stocks defined over a set of dimensions. 
+    consists of a set of processes, flows, stocks defined over a set of dimensions.
     For the concrete definition of the system, a subclass of MFASystem must be implemented.
 
     **Example**
