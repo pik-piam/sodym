@@ -86,7 +86,7 @@ class FixedSurvival(SurvivalModel):
         return (self.remaining_ages(m) < lifetime_mean[m, ...]).astype(int)
 
 
-class StandardDeviationSurivalModel(SurvivalModel):
+class StandardDeviationSurvivalModel(SurvivalModel):
    def __init__(
         self, dims: DimensionSet, lifetime_mean: NamedDimArray, lifetime_std: NamedDimArray,
         time_letter: str = 't'
@@ -98,7 +98,7 @@ class StandardDeviationSurivalModel(SurvivalModel):
         )
 
 
-class NormalSurvival(StandardDeviationSurivalModel):
+class NormalSurvival(StandardDeviationSurvivalModel):
     """Normally distributed lifetime with mean and standard deviation.
     Watch out for nonzero values, for negative ages, no correction or truncation done here.
     NOTE: As normal distributions have nonzero pdf for negative ages,
@@ -118,7 +118,7 @@ class NormalSurvival(StandardDeviationSurivalModel):
         )
 
 
-class FoldedNormalSurvival(StandardDeviationSurivalModel):
+class FoldedNormalSurvival(StandardDeviationSurvivalModel):
     """Folded normal distribution, cf. https://en.wikipedia.org/wiki/Folded_normal_distribution
     NOTE: call this with the parameters of the normal distribution mu and sigma of curve
     BEFORE folding, curve after folding will have different mu and sigma.
@@ -135,7 +135,7 @@ class FoldedNormalSurvival(StandardDeviationSurivalModel):
         )
 
 
-class LogNormalSurvival(StandardDeviationSurivalModel):
+class LogNormalSurvival(StandardDeviationSurvivalModel):
     """Lognormal distribution
     Here, the mean and stddev of the lognormal curve, not those of the underlying normal
     distribution, need to be specified!
