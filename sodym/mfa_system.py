@@ -1,3 +1,4 @@
+import logging
 from abc import abstractmethod
 from typing import Dict, Optional
 
@@ -127,7 +128,6 @@ class MFASystem(PydanticBaseModel):
         """Compute mass balance, and check whether it is within a certain tolerance.
         Throw an error if it isn't."""
 
-        print("Checking mass balance...")
         # returns array with dim [t, process, e]
         relative_balance = self.get_relative_mass_balance()  # assume no error if total sum is 0
         id_failed = {
@@ -141,5 +141,5 @@ class MFASystem(PydanticBaseModel):
         if any(id_failed.values()):
             raise RuntimeError(f"Error, Mass Balance fails for processes {', '.join(messages_failed)}")
         else:
-            print("Success - Mass balance consistent!")
+            logging.info(f"Success - Mass balance of {self.__class__.__name__} object is consistent!")
         return
