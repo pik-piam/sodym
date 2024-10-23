@@ -16,7 +16,7 @@ from .data_reader import DataReader
 
 class MFASystem(PydanticBaseModel):
     """An MFASystem class handles the calculation of a Material Flow Analysis system, which
-    consists of a set of processes, flows, stocks defined over a set of dimensions. 
+    consists of a set of processes, flows, stocks defined over a set of dimensions.
     For the concrete definition of the system, a subclass of MFASystem must be implemented.
 
     **Example**
