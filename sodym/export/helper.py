@@ -12,9 +12,9 @@ def to_valid_file_name(value: str) -> str:
     Convert to lowercase. Also strip leading and trailing whitespace, dashes, and underscores.
     """
     value = str(value)
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub(r'[^\w\s-]', '', value.lower())
-    return re.sub(r'[-\s]', '_', value).strip('-_')
+    value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]", "_", value).strip("-_")
 
 
 class CustomNameDisplayer(PydanticBaseModel):

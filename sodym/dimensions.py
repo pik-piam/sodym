@@ -18,7 +18,9 @@ class Dimension(PydanticBaseModel):
     """
 
     name: str = Field(..., min_length=2)
-    letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter"))
+    letter: str = Field(
+        ..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter")
+    )
     items: list
 
     @property
@@ -59,14 +61,14 @@ class DimensionSet(PydanticBaseModel):
 
     dim_list: list[Dimension]
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def no_repeated_dimensions(self):
         letters = self.letters
         if len(letters) != len(set(letters)):
-            raise ValueError('Dimensions must have unique letters in DimensionSet.')
+            raise ValueError("Dimensions must have unique letters in DimensionSet.")
         return self
 
-    def drop(self, key: str, inplace: bool=False):
+    def drop(self, key: str, inplace: bool = False):
         dim_to_drop = self._dict[key]
         if not inplace:
             dimensions = copy(self.dim_list)
@@ -100,7 +102,7 @@ class DimensionSet(PydanticBaseModel):
         keys = keys if keys else self.letters
         return tuple(self.size(key) for key in keys)
 
-    def get_subset(self, dims: tuple = None) -> 'DimensionSet':
+    def get_subset(self, dims: tuple = None) -> "DimensionSet":
         """Selects :py:class:`Dimension` objects from the object attribute dim_list,
         according to the dims passed, which can be either letters or names.
         Returns a copy if dims are not given.
@@ -110,18 +112,19 @@ class DimensionSet(PydanticBaseModel):
             subset.dim_list = [self._dict[dim_key] for dim_key in dims]
         return subset
 
-    def expand_by(self, added_dims: list[Dimension]) -> 'DimensionSet':
-        """Expands the DimensionSet by adding new dimensions to it.
-        """
+    def expand_by(self, added_dims: list[Dimension]) -> "DimensionSet":
+        """Expands the DimensionSet by adding new dimensions to it."""
         if not all([dim.letter not in self.letters for dim in added_dims]):
-            raise ValueError('DimensionSet already contains one or more of the dimensions to be added.')
+            raise ValueError(
+                "DimensionSet already contains one or more of the dimensions to be added."
+            )
         return DimensionSet(dim_list=self.dim_list + added_dims)
 
-    def intersect_with(self, other: 'DimensionSet') -> 'DimensionSet':
+    def intersect_with(self, other: "DimensionSet") -> "DimensionSet":
         intersection_letters = [dim.letter for dim in self.dim_list if dim.letter in other.letters]
         return self.get_subset(intersection_letters)
 
-    def union_with(self, other: 'DimensionSet') -> 'DimensionSet':
+    def union_with(self, other: "DimensionSet") -> "DimensionSet":
         added_dims = [dim for dim in other.dim_list if dim.letter not in self.letters]
         return self.expand_by(added_dims)
 

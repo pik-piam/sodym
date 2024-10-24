@@ -13,6 +13,7 @@ class DataReader(ABC):
     """Template for creating a data reader, showing required methods and data formats needed for
     use in the MFASystem model.
     """
+
     def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
         dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
         return DimensionSet(dim_list=dimensions)
@@ -29,13 +30,15 @@ class DataReader(ABC):
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
         pass
 
-    def read_parameters(self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
-                        ) -> Dict[str, Parameter]:
+    def read_parameters(
+        self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
+    ) -> Dict[str, Parameter]:
         parameters = {}
         for parameter in parameter_definitions:
             dim_subset = dims.get_subset(parameter.dim_letters)
             parameters[parameter.name] = self.read_parameter_values(
-                parameter=parameter.name, dims=dim_subset,
+                parameter=parameter.name,
+                dims=dim_subset,
             )
         return parameters
 
@@ -57,13 +60,14 @@ class ExampleDataReader(DataReader):
         >>> time_dimension = data_reader.read_dimension(definition=time_definition)
 
     """
+
     def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
         self.scalar_data_yaml = scalar_data_yaml  # file_path
         self.parameter_datasets = parameter_datasets  # {parameter_name: file_path, ...}
         self.dimension_datasets = dimension_datasets  # {dimension_name: file_path, ...}
 
     def read_scalar_data(self, parameters: List[str]):
-        with open(self.scalar_data_yaml, 'r') as stream:
+        with open(self.scalar_data_yaml, "r") as stream:
             data = yaml.safe_load(stream)
         return {name: data[name] for name in data if name in parameters}
 
@@ -75,7 +79,7 @@ class ExampleDataReader(DataReader):
 
     def read_dimension(self, definition: DimensionDefinition):
         path = self.dimension_datasets[definition.name]
-        data = np.loadtxt(path, dtype=definition.dtype, delimiter=';').tolist()
+        data = np.loadtxt(path, dtype=definition.dtype, delimiter=";").tolist()
         # catch size one lists, which are transformed to scalar by np.ndarray.tolist()
         data = data if isinstance(data, list) else [data]
         return Dimension(name=definition.name, letter=definition.letter, items=data)
@@ -95,7 +99,7 @@ class ExampleDataReader(DataReader):
         if np.prod(shape_out) != df.index.size:
             raise Exception("Dataframe is missing values!")
 
-        if np.any(value_cols != 'value'):
+        if np.any(value_cols != "value"):
             out = {vc: df[vc].values.reshape(shape_out) for vc in value_cols}
         else:
             out = df["value"].values.reshape(shape_out)

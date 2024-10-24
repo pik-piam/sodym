@@ -11,9 +11,7 @@ from .mfa_definition import DefinitionWithDimLetters
 
 
 def is_iterable(arg):
-    return (
-        isinstance(arg, Iterable) and not isinstance(arg, str)
-    )
+    return isinstance(arg, Iterable) and not isinstance(arg, str)
 
 
 class NamedDimArray(PydanticBaseModel):
@@ -58,7 +56,9 @@ class NamedDimArray(PydanticBaseModel):
         if self.values is None:
             self.values = np.zeros(self.dims.shape())
         elif self.values.shape != self.dims.shape():
-            raise ValueError("Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet.")
+            raise ValueError(
+                "Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet."
+            )
         return self
 
     @classmethod
@@ -95,35 +95,44 @@ class NamedDimArray(PydanticBaseModel):
 
     def cast_values_to(self, target_dims: DimensionSet):
         assert all([d in target_dims.letters for d in self.dims.letters]), (
-            "Target of cast must contain all " \
-            f"dimensions of the object! Source dims '{self.dims.string}' are not all contained in target dims " \
+            "Target of cast must contain all "
+            f"dimensions of the object! Source dims '{self.dims.string}' are not all contained in target dims "
             f"'{target_dims.string}'. Maybe use sum_values_to() before casting"
         )
         # safety procedure: order dimensions
         values = np.einsum(
-            f"{self.dims.string}->{''.join([d for d in target_dims.letters if d in self.dims.letters])}", self.values
+            f"{self.dims.string}->{''.join([d for d in target_dims.letters if d in self.dims.letters])}",
+            self.values,
         )
-        index = tuple([slice(None) if d in self.dims.letters else np.newaxis for d in target_dims.letters])
+        index = tuple(
+            [slice(None) if d in self.dims.letters else np.newaxis for d in target_dims.letters]
+        )
         multiple = tuple([1 if d.letter in self.dims.letters else d.len for d in target_dims])
         values = values[index]
         values = np.tile(values, multiple)
         return values
 
     def cast_to(self, target_dims: DimensionSet):
-        return NamedDimArray(dims=target_dims, values=self.cast_values_to(target_dims), name=self.name)
+        return NamedDimArray(
+            dims=target_dims, values=self.cast_values_to(target_dims), name=self.name
+        )
 
     def sum_values_to(self, result_dims: tuple[str] = ()):
         return np.einsum(f"{self.dims.string}->{''.join(result_dims)}", self.values)
 
     def sum_nda_to(self, result_dims: tuple = ()):
         return NamedDimArray(
-            dims=self.dims.get_subset(result_dims), values=self.sum_values_to(result_dims), name=self.name
+            dims=self.dims.get_subset(result_dims),
+            values=self.sum_values_to(result_dims),
+            name=self.name,
         )
 
     def sum_nda_over(self, sum_over_dims: tuple = ()):
         result_dims = tuple([d for d in self.dims.letters if d not in sum_over_dims])
         return NamedDimArray(
-            dims=self.dims.get_subset(result_dims), values=self.sum_values_over(sum_over_dims), name=self.name
+            dims=self.dims.get_subset(result_dims),
+            values=self.sum_values_over(sum_over_dims),
+            name=self.name,
         )
 
     def _prepare_other(self, other):
@@ -138,40 +147,50 @@ class NamedDimArray(PydanticBaseModel):
         other = self._prepare_other(other)
         dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
-            dims=dims_out, values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters)
+            dims=dims_out,
+            values=self.sum_values_to(dims_out.letters) + other.sum_values_to(dims_out.letters),
         )
 
     def __sub__(self, other):
         other = self._prepare_other(other)
         dims_out = self.dims.intersect_with(other.dims)
         return NamedDimArray(
-            dims=dims_out, values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters)
+            dims=dims_out,
+            values=self.sum_values_to(dims_out.letters) - other.sum_values_to(dims_out.letters),
         )
 
     def __mul__(self, other):
         other = self._prepare_other(other)
         dims_out = self.dims.union_with(other.dims)
-        values_out = np.einsum(f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values)
+        values_out = np.einsum(
+            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, other.values
+        )
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __truediv__(self, other):
         other = self._prepare_other(other)
         dims_out = self.dims.union_with(other.dims)
         values_out = np.einsum(
-            f"{self.dims.string},{other.dims.string}->{dims_out.string}", self.values, 1.0 / other.values
+            f"{self.dims.string},{other.dims.string}->{dims_out.string}",
+            self.values,
+            1.0 / other.values,
         )
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def minimum(self, other):
         other = self._prepare_other(other)
         dims_out = self.dims.intersect_with(other.dims)
-        values_out = np.minimum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
+        values_out = np.minimum(
+            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
+        )
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def maximum(self, other):
         other = self._prepare_other(other)
         dims_out = self.dims.intersect_with(other.dims)
-        values_out = np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
+        values_out = np.maximum(
+            self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters)
+        )
         return NamedDimArray(dims=dims_out, values=values_out)
 
     def __neg__(self):
@@ -213,7 +232,7 @@ class NamedDimArray(PydanticBaseModel):
 
     def to_df(self, index: bool = True):
         multiindex = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
-        df = pd.DataFrame({'value': self.values.flatten()})
+        df = pd.DataFrame({"value": self.values.flatten()})
         df = df.set_index(multiindex)
         if not index:
             df = df.reset_index()
@@ -324,7 +343,7 @@ class SubArrayHandler:
         """Updated dimension letters, where sliced dimensions with only one item along that direction are removed."""
         return self.dims.letters
 
-    def to_nda(self) -> 'NamedDimArray':
+    def to_nda(self) -> "NamedDimArray":
         """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
 
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
@@ -399,6 +418,7 @@ class Flow(NamedDimArray):
     and these would get filled with zeros.
     See the validation (filling) method in :py:class:`NamedDimArray`.
     """
+
     model_config = ConfigDict(protected_namespaces=())
 
     from_process: Process
@@ -419,6 +439,7 @@ class StockArray(NamedDimArray):
     StockArray inherits all its functionality from :py:class:`NamedDimArray`.
     StockArray's are used in the :py:class:`sodym.stocks.Stock` for the inflow, outflow and stock.
     """
+
     pass
 
 
@@ -429,4 +450,5 @@ class Parameter(NamedDimArray):
 
     Parameter inherits all its functionality from :py:class:`NamedDimArray`.
     """
+
     pass
