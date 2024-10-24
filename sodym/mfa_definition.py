@@ -19,10 +19,13 @@ class DimensionDefinition(PydanticBaseModel):
     >>> time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
     >>> region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
     """
+
     model_config = ConfigDict(protected_namespaces=())
 
     name: str = Field(..., min_length=2)
-    letter: str = Field(..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter"))
+    letter: str = Field(
+        ..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter")
+    )
     dtype: type
 
 
@@ -51,14 +54,18 @@ class FlowDefinition(DefinitionWithDimLetters):
     These are then used in the :py:class:MFADefinition, for creating a custom MFA System.
     """
 
-    from_process_name: str = Field(validation_alias=AliasChoices("from_process_name", "from_process"))
+    from_process_name: str = Field(
+        validation_alias=AliasChoices("from_process_name", "from_process")
+    )
     to_process_name: str = Field(validation_alias=AliasChoices("to_process_name", "to_process"))
     name_override: Optional[str] = None
 
 
 class StockDefinition(DefinitionWithDimLetters):
     name: str = "undefined stock"
-    process_name: str = Field(default="undefined process", validation_alias=AliasChoices("process", "process_name"))
+    process_name: str = Field(
+        default="undefined process", validation_alias=AliasChoices("process", "process_name")
+    )
 
 
 class ParameterDefinition(DefinitionWithDimLetters):
@@ -67,6 +74,7 @@ class ParameterDefinition(DefinitionWithDimLetters):
 
 class MFADefinition(PydanticBaseModel):
     """All the information needed to define an MFA system."""
+
     model_config = ConfigDict(protected_namespaces=())
 
     dimensions: List[DimensionDefinition]
@@ -76,11 +84,11 @@ class MFADefinition(PydanticBaseModel):
     parameters: List[ParameterDefinition]
     scalar_parameters: Optional[list] = []
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def check_dimension_letters(self):
         defined_dim_letters = [dd.letter for dd in self.dimensions]
         for item in self.flows + self.stocks + self.parameters:
             correct_dims = [letter in defined_dim_letters for letter in item.dim_letters]
             if not np.all(correct_dims):
-                raise ValueError(f'Undefined dimension in {item}')
+                raise ValueError(f"Undefined dimension in {item}")
         return self
