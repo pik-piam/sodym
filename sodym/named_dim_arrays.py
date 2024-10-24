@@ -62,26 +62,17 @@ class NamedDimArray(PydanticBaseModel):
         return self
 
     @classmethod
-    def from_definition_and_parent_alldims(cls, definition: DefinitionWithDimLetters, parent_alldims: DimensionSet):
-        dims = parent_alldims.get_subset(definition.dim_letters)
-        return cls(dims=dims, **dict(definition))
-
-    @classmethod
-    def from_args(
-        cls, parent_alldims: DimensionSet, name: str = "unnamed", dim_letters: tuple = None, values: np.ndarray = None
-    ):
+    def from_dims_superset(cls, dims_superset: DimensionSet, dim_letters: tuple = None, **kwargs):
         """
         Parameters:
-            parent_alldims: DimensionSet from which the objects dimensions are derived
-            dim_letters: specify which dimensions to take from parent_alldims
-            values: can be initialized directly, or otherwise are filled with zeros
-            name: property of the cls instance being created
+            dims_superset: DimensionSet from which the objects dimensions are derived
+            dim_letters: specify which dimensions to take from dims_superset
 
         Returns:
             cls instance
         """
-        dims = parent_alldims.get_subset(dim_letters)
-        return cls(dims=dims, name=name, values=values)
+        dims = dims_superset.get_subset(dim_letters)
+        return cls(dims=dims, **kwargs)
 
     def sub_array_handler(self, definition):
         return SubArrayHandler(self, definition)
