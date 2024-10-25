@@ -3,29 +3,28 @@ from numpy.testing import assert_almost_equal, assert_array_almost_equal, assert
 from pydantic_core import ValidationError
 import pytest
 
-from sodym import NamedDimArray, DimensionSet
+from sodym import NamedDimArray, DimensionSet, Dimension
 
 
-dimensions = [
-        {'name': 'place', 'letter': 'p', 'items': ['Earth', 'Sun', 'Moon', 'Venus']},
-        {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
-    ]
-dims = DimensionSet(dim_list=dimensions)
+places = Dimension(name='place', letter='p', items=['Earth', 'Sun', 'Moon', 'Venus'])
+local_places = Dimension(name='local place', letter='l', items=['Earth'])
+time = Dimension(name='time', letter='t', items=[1990, 2000, 2010])
+historic_time = Dimension(name='historic time', letter='h', items=[1990, 2000])
+animals = Dimension(name='animal', letter='a', items=['cat', 'mouse'])
+
+base_dim_list = [places, time]
+
+dims = DimensionSet(dim_list=base_dim_list)
 values = np.random.rand(4, 3)
 numbers = NamedDimArray(name='two', dims=dims, values=values)
 
-animals = {'name': 'animal', 'letter': 'a', 'items': ['cat', 'mouse']}
-dims_incl_animals = DimensionSet(dim_list=dimensions+[animals])
+dims_incl_animals = DimensionSet(dim_list=base_dim_list+[animals])
 animal_values = np.random.rand(4, 3, 2)
 space_animals = NamedDimArray(name='space_animals', dims=dims_incl_animals, values=animal_values)
 
 
 def test_named_dim_array_validations():
-    dimensions = [
-        {'name': 'place', 'letter': 'p', 'items': ['World', ]},
-        {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
-    ]
-    dims = DimensionSet(dim_list=dimensions)
+    dims = DimensionSet(dim_list=[local_places, time])
 
     # example with values with the correct shape
     NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3], ]))
@@ -52,7 +51,7 @@ def test_cast_to():
     assert_almost_equal(np.sum(casted_named_dim_array.values), 2 * np.sum(values))
 
     # example with differently ordered dimensions
-    target_dims = DimensionSet(dim_list=[animals]+dimensions[::-1])
+    target_dims = DimensionSet(dim_list=[animals]+base_dim_list[::-1])
     casted_named_dim_array = numbers.cast_to(target_dims=target_dims)
     assert casted_named_dim_array.values.shape == (2, 3, 4)
 
@@ -60,7 +59,7 @@ def test_cast_to():
 def test_sum_nda_to():
     # sum over one dimension
     summed_named_dim_array = space_animals.sum_nda_to(result_dims=('p', 't'))
-    assert summed_named_dim_array.dims == DimensionSet(dim_list=dimensions)
+    assert summed_named_dim_array.dims == DimensionSet(dim_list=base_dim_list)
     assert_array_almost_equal(summed_named_dim_array.values, np.sum(animal_values, axis=2))
 
     # sum over two dimensions
@@ -140,3 +139,28 @@ def test_sub_array_handler():
 
     with pytest.raises(ValueError):
         space_animals[{'a': 'dog'}]  # there isn't a dog in space_animals
+
+
+def test_dimension_subsets():
+    historic_dims_incl_animals = DimensionSet(dim_list=[places, historic_time, animals])
+    historic_space_animals = NamedDimArray(dims=historic_dims_incl_animals)
+    historic_space_animals[...] = space_animals[{'t': historic_time}]
+
+    assert np.min(historic_space_animals.values) > 0.
+
+    space_animals_copy = NamedDimArray(dims=dims_incl_animals)
+    space_animals_copy[{'t': historic_time}] = 1.0 * historic_space_animals
+    space_animals_copy[{'t': 2010}] = 1.0 * space_animals[{'t': 2010}]
+
+    assert_array_equal(space_animals.values, space_animals_copy.values)
+
+    wrong_historic_time = Dimension(name='historic time', letter='t', items=[1990, 2000]),
+    with pytest.raises(ValueError):
+        space_animals[{'t': wrong_historic_time}] # same letter in original and subset
+
+    another_wrong_historic_time = Dimension(name='historic time', letter='p', items=[1990, 2000]),
+    with pytest.raises(ValueError):
+        space_animals[{'t': another_wrong_historic_time}] # same letter in other dim of original and subset
+
+    with pytest.raises(ValueError):
+        historic_space_animals[{'h': time}] # index is not a subset

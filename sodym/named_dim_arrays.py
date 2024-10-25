@@ -6,14 +6,19 @@ import pandas as pd
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
 
-from .dimensions import DimensionSet
-from .mfa_definition import DefinitionWithDimLetters
+from .dimensions import DimensionSet, Dimension
 
 
 def is_iterable(arg):
     return (
-        isinstance(arg, Iterable) and not isinstance(arg, str)
+        isinstance(arg, Iterable) and not isinstance(arg, (str, Dimension))
     )
+
+def is_non_subset_dim(arg, other_dim):
+    if not isinstance(arg, Dimension):
+        return False
+    else:
+        return not arg.is_subset(other_dim)
 
 
 class NamedDimArray(PydanticBaseModel):
@@ -209,7 +214,8 @@ class NamedDimArray(PydanticBaseModel):
         'foo.values[...] = bar'."""
         assert isinstance(item, NamedDimArray), "Item on RHS of assignment must be a NamedDimArray"
         slice_obj = self.sub_array_handler(keys)
-        slice_obj.values_pointer[...] = item.sum_values_to(slice_obj.dim_letters)
+        self.values[slice_obj.ids] = item.sum_values_to(slice_obj.dim_letters)
+        return
 
     def to_df(self, index: bool = True):
         multiindex = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
@@ -261,7 +267,8 @@ class SubArrayHandler:
     def __init__(self, named_dim_array: NamedDimArray, definition):
         self.nda = named_dim_array
         self._get_def_dict(definition)
-        self.has_dim_with_several_items = any(is_iterable(v) for v in self.def_dict.values())
+        self.invalid_nda = any(is_iterable(v) for v in self.def_dict.values())
+        self._init_dims_out()
         self._init_ids()
 
     def _get_def_dict(self, definition):
@@ -270,11 +277,11 @@ class SubArrayHandler:
         elif isinstance(definition, dict):
             self.def_dict = definition
         elif isinstance(definition, tuple):
-            self.def_dict = self.to_dict_tuple(definition)
+            self.def_dict = self._to_dict_tuple(definition)
         else:
-            self.def_dict = self.to_dict_single_item(definition)
+            self.def_dict = self._to_dict_single_item(definition)
 
-    def to_dict_single_item(self, item):
+    def _to_dict_single_item(self, item):
         if isinstance(item, slice):
             raise ValueError(
                 "Numpy indexing of NamedDimArrays is not supported. Details are given in the NamedDimArray class "
@@ -293,10 +300,10 @@ class SubArrayHandler:
             raise ValueError(f"Slicing item '{item}' not found in any dimension.")
         return dict_out
 
-    def to_dict_tuple(self, slice_def) -> dict:
+    def _to_dict_tuple(self, slice_def) -> dict:
         dict_out = defaultdict(list)
         for item in slice_def:
-            key, value = self.to_dict_single_item(item)
+            key, value = self._to_dict_single_item(item)
             dict_out[key].append(value)
         # if there is only one item along a dimension, convert list to single item
         return {k: v if len(v) > 1 else v[0] for k, v in dict_out.items()}
@@ -311,29 +318,29 @@ class SubArrayHandler:
         """Pointer to the subset of the values array of the parent NamedDimArray object."""
         return self.nda.values[self.ids]
 
-    @property
-    def dims(self):
-        dims = deepcopy(self.nda.dims)
-        for letter in self.def_dict.keys():
-            if not is_iterable(self.def_dict[letter]):
-                dims.drop(letter, inplace=True)
-        return dims
+    def _init_dims_out(self):
+        self.dims_out = deepcopy(self.nda.dims)
+        for letter, value in self.def_dict.items():
+            if isinstance(value, Dimension):
+                self.dims_out.replace(letter, value, inplace=True)
+            elif not is_iterable(value):
+                self.dims_out.drop(letter, inplace=True)
 
     @property
     def dim_letters(self):
         """Updated dimension letters, where sliced dimensions with only one item along that direction are removed."""
-        return self.dims.letters
+        return self.dims_out.letters
 
     def to_nda(self) -> 'NamedDimArray':
         """Return a NamedDimArray object that is a slice of the original NamedDimArray object.
 
         Attention: This creates a new NamedDimArray object, which is not linked to the original one.
         """
-        assert (
-            not self.has_dim_with_several_items
-        ), "Cannot convert to NamedDimArray if there are dimensions with several items"
+        if self.invalid_nda:
+            raise ValueError("Cannot convert to NamedDimArray if there are dimension slices with several items."
+            "Use a new dimension object with the subset as values instead")
 
-        return NamedDimArray(dims=self.dims, values=self.values_pointer, name=self.nda.name)
+        return NamedDimArray(dims=self.dims_out, values=self.values_pointer, name=self.nda.name)
 
     def _init_ids(self):
         """
@@ -347,7 +354,12 @@ class SubArrayHandler:
     def _set_ids_single_dim(self, dim_letter, item_or_items):
         """Given either a single item name or a list of item names, return the corresponding item IDs, along one
         dimension 'dim_letter'."""
-        if is_iterable(item_or_items):
+        if isinstance(item_or_items, Dimension):
+            if item_or_items.is_subset(self.nda.dims[dim_letter]):
+                items_ids = [self._get_single_item_id(dim_letter, item) for item in item_or_items.items]
+            else:
+                raise ValueError("Dimension item given in array index must be a subset of the dimension it replaces")
+        elif is_iterable(item_or_items):
             items_ids = [self._get_single_item_id(dim_letter, item) for item in item_or_items]
         else:
             items_ids = self._get_single_item_id(dim_letter, item_or_items)  # single item
