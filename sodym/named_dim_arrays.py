@@ -225,12 +225,16 @@ class NamedDimArray(PydanticBaseModel):
             df = df.reset_index()
         return df
 
-    def split(self, dim_letter) -> dict:
+    def split(self, dim_letter: str) -> dict:
         """Reverse the named_dim_array_stack, returns a dictionary of `NamedDimArray`s
         associated with the item in the dimension that has been split.
         Method can be applied to `NamedDimArray`s, `StockArray`s, `Parameter`s and `Flow`s.
         """
         return {item: self[{dim_letter: item}] for item in self.dims[dim_letter].items}
+
+    def get_shares_over(self, dim_letters: tuple) -> 'NamedDimArray':
+        """Get shares of the NamedDimArray along a tuple of dimensions, indicated by letter."""
+        return self / self.sum_nda_over(sum_over_dims=dim_letters)
 
 
 class SubArrayHandler:
