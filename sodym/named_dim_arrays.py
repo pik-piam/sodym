@@ -179,6 +179,12 @@ class NamedDimArray(PydanticBaseModel):
         values_out = np.maximum(self.sum_values_to(dims_out.letters), other.sum_values_to(dims_out.letters))
         return NamedDimArray(dims=dims_out, values=values_out)
 
+    def abs(self):
+        return NamedDimArray(dims=self.dims, values=np.abs(self.values))
+
+    def sign(self):
+        return NamedDimArray(dims=self.dims, values=np.sign(self.values))
+
     def __neg__(self):
         return NamedDimArray(dims=self.dims, values=-self.values)
 
@@ -234,6 +240,11 @@ class NamedDimArray(PydanticBaseModel):
 
     def get_shares_over(self, dim_letters: tuple) -> 'NamedDimArray':
         """Get shares of the NamedDimArray along a tuple of dimensions, indicated by letter."""
+        assert all([d in self.dims.letters for d in dim_letters]), 'Dimensions to get share of must be in the object'
+
+        if all([d in dim_letters for d in self.dims.letters]):
+            return self / self.sum_values()
+
         return self / self.sum_nda_over(sum_over_dims=dim_letters)
 
 

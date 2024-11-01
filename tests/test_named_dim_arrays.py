@@ -79,6 +79,27 @@ def test_sum_nda_to():
     assert_array_almost_equal(nothing_changes.values, space_animals.values)
     assert nothing_changes.dims == space_animals.dims
 
+def test_get_shares_over():
+    # example of getting shares over one dimension
+    shares = space_animals.get_shares_over(dim_letters=('p',))
+    assert shares.dims == space_animals.dims
+    wanted_values = np.einsum('pta,ta->pta', animal_values, 1/np.sum(animal_values, axis=0))
+    assert_array_almost_equal(shares.values, wanted_values)
+
+    # example of getting shares over two dimensions
+    shares = space_animals.get_shares_over(dim_letters=('p', 'a'))
+    wanted_values = np.einsum('pta,t->pta', animal_values, 1/np.sum(animal_values, axis=(0, 2)))
+    assert_array_almost_equal(shares.values, wanted_values)
+
+    # example of getting shares over all dimensions
+    shares = space_animals.get_shares_over(dim_letters=('p', 't', 'a'))
+    assert_array_almost_equal(shares.values, animal_values / np.sum(animal_values))
+
+
+    # example of getting shares over a dimension that doesn't exist
+    with pytest.raises(AssertionError):
+        space_animals.get_shares_over(dim_letters=('s',))
+
 def test_maths():
     # test minimum
     minimum = space_animals.minimum(numbers)
