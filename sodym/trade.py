@@ -8,7 +8,6 @@ from .dimensions import DimensionSet
 class Trade(PydanticBaseModel):
     """ A TradeModule handles the storing and calculation of trade data for a given MFASystem."""
 
-    dims : DimensionSet
     imports : Parameter
     exports : Parameter
 
@@ -16,6 +15,12 @@ class Trade(PydanticBaseModel):
     def validate_region_dimension(self):
         assert 'r' in self.imports.dims.letters, "Imports must have a Region dimension."
         assert 'r' in self.exports.dims.letters, "Exports must have a Region dimension."
+
+        return self
+
+    @model_validator(mode='after')
+    def validate_trade_dimensions(self):
+        assert self.imports.dims == self.exports.dims, "Imports and Exports must have the same dimensions."
 
         return self
 
@@ -41,21 +46,26 @@ class BalancedTrade(Trade):
     def balance(self, **kwargs):
         pass
 
-class MinMaxBalancedTrade(BalancedTrade):
+class ExtrenumBalancedTrade(BalancedTrade):
 
     def balance(self, by:str):
         global_imports = self.imports.sum_nda_over('r')
         global_exports = self.exports.sum_nda_over('r')
 
         if by == 'maximum':
-            max_trade = global_imports.maximum(global_exports)
+            reference_trade = global_imports.maximum(global_exports)
         elif by == 'minimum':
-            max_trade = global_imports.minimum(global_exports)
+            reference_trade = global_imports.minimum(global_exports)
+        elif by == 'imports':
+            reference_trade = global_imports
+        elif by == 'exports':
+            reference_trade = global_exports
         else:
-            raise ValueError(f"Extrenum {by} not recognized. Must be one of 'maximum' or 'minimum'.")
+            raise ValueError(f"Extrenum {by} not recognized. Must be one of "
+                             f"'maximum', 'minimum', 'imports' or 'exports'.")
 
-        import_factor = max_trade / global_imports.maximum(sys.float_info.epsilon)
-        export_factor = max_trade / global_exports.maximum(sys.float_info.epsilon)
+        import_factor = reference_trade / global_imports.maximum(sys.float_info.epsilon)
+        export_factor = reference_trade / global_exports.maximum(sys.float_info.epsilon)
 
         self.imports = self.imports * import_factor
         self.exports = self.exports * export_factor
