@@ -28,6 +28,12 @@ class Dimension(PydanticBaseModel):
     def index(self, item) -> int:
         return self.items.index(item)
 
+    def is_subset(self, other: 'Dimension'):
+        return set(self.items).issubset(other.items)
+
+    def is_superset(self, other: 'Dimension'):
+        return set(self.items).issuperset(other.items)
+
 
 class DimensionSet(PydanticBaseModel):
     """A set of Dimension objects which MFA arrays are defined over.
@@ -65,14 +71,6 @@ class DimensionSet(PydanticBaseModel):
         if len(letters) != len(set(letters)):
             raise ValueError('Dimensions must have unique letters in DimensionSet.')
         return self
-
-    def drop(self, key: str, inplace: bool=False):
-        dim_to_drop = self._dict[key]
-        if not inplace:
-            dimensions = copy(self.dim_list)
-            dimensions.remove(dim_to_drop)
-            return DimensionSet(dim_list=dimensions)
-        self.dim_list.remove(dim_to_drop)
 
     @property
     def _dict(self) -> Dict[str, Dimension]:
@@ -116,6 +114,28 @@ class DimensionSet(PydanticBaseModel):
         if not all([dim.letter not in self.letters for dim in added_dims]):
             raise ValueError('DimensionSet already contains one or more of the dimensions to be added.')
         return DimensionSet(dim_list=self.dim_list + added_dims)
+
+    def drop(self, key: str, inplace: bool=False):
+        dim_to_drop = self._dict[key]
+        if inplace:
+            self.dim_list.remove(dim_to_drop)
+            return
+        else:
+            dimensions = copy(self.dim_list)
+            dimensions.remove(dim_to_drop)
+            return DimensionSet(dim_list=dimensions)
+
+    def replace(self, key: str, new_dim: Dimension, inplace: bool=False):
+        if new_dim.letter in self.letters:
+            raise ValueError("New dimension can't have same letter as any of those already in DimensionSet, "
+                             "as that would create ambiguity")
+        if inplace:
+            self.dim_list[self.index(key)] = new_dim
+            return
+        else:
+            dim_list = copy(self.dim_list)
+            dim_list[self.index(key)] = new_dim
+            return DimensionSet(dim_list=dim_list)
 
     def intersect_with(self, other: 'DimensionSet') -> 'DimensionSet':
         intersection_letters = [dim.letter for dim in self.dim_list if dim.letter in other.letters]

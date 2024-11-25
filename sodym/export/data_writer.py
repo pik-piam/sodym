@@ -13,6 +13,7 @@ def export_mfa_to_pickle(mfa, export_path: str):
     pickle.dump(dict_out, open(export_path, "wb"))
     logging.info(f'Data saved to {export_path}')
 
+
 def export_mfa_flows_to_csv(mfa: MFASystem, export_directory: str):
     if not os.path.exists(export_directory):
         os.makedirs(export_directory)
@@ -20,6 +21,7 @@ def export_mfa_flows_to_csv(mfa: MFASystem, export_directory: str):
         path_out = os.path.join(export_directory, f'{to_valid_file_name(flow_name)}.csv')
         flow.to_df().to_csv(path_out)
     logging.info(f'Data saved in directory {export_directory}')
+
 
 def export_mfa_stocks_to_csv(mfa: MFASystem, export_directory: str, with_in_and_out: bool = False):
     if not os.path.exists(export_directory):
@@ -35,9 +37,11 @@ def export_mfa_stocks_to_csv(mfa: MFASystem, export_directory: str, with_in_and_
             df.to_csv(path_out, index=False)
     logging.info(f'Data saved in directory {export_directory}')
 
+
 def convert_to_dict(mfa: MFASystem, type: str = "numpy") -> dict:
     convert_func = _get_convert_func(type)
     return _convert_to_dict_by_func(mfa, convert_func)
+
 
 def _get_convert_func(type: str):
     if type == "numpy":
@@ -49,6 +53,7 @@ def _get_convert_func(type: str):
     else:
         raise ValueError(f"Unknown export type {type}. Must be 'numpy' or 'pandas'.")
     return convert_func
+
 
 def _convert_to_dict_by_func(mfa: MFASystem, convert_func: Callable) -> dict:
     dict_out = {}

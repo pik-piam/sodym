@@ -8,7 +8,7 @@ from sodym.named_dim_array_helper import named_dim_array_stack
 
 
 dimension_set = DimensionSet(
-    dimensions = [
+    dim_list = [
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
         {'name': 'place', 'letter': 'p', 'items': ['World', ]}
     ]
@@ -26,12 +26,12 @@ def test_named_dim_array_stack(new_dim_length):
     stacked = named_dim_array_stack(named_dim_arrays, additional_dim)
 
     assert stacked.shape[:-1] == dimension_set.shape()
-    assert stacked.dims.dimensions[:-1] == dimension_set.dimensions
+    assert stacked.dims.dim_list[:-1] == dimension_set.dim_list
 
     for i in range(new_dim_length):
         assert_array_equal(stacked.values[:, :, i], named_dim_arrays[i].values)
     assert stacked.shape[-1] == new_dim_length
-    assert stacked.dims.dimensions[-1] == additional_dim
+    assert stacked.dims.dim_list[-1] == additional_dim
 
 
 def test_named_dim_array_split():

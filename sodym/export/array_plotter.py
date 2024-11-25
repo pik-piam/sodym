@@ -61,7 +61,8 @@ class ArrayPlotter(CustomNameDisplayer, ABC, PydanticBaseModel):
         subplots_array, subplots_x_array = self.prepare_arrays()
         self.plot_all_subplots(subplots_array, subplots_x_array)
         self.plot_legend()
-        self.set_title()
+        if self.title is not None:
+            self.set_title()
         if save_path is not None:
             self.save(save_path)
         if do_show:
