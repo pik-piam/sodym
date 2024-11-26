@@ -62,7 +62,7 @@ def create_dynamic_stock(
     """Initialise either a StockDrivenDSM or an InflowDrivenDSM,
     depending on whether the user passes stock or inflow.
     The survival function of the dynamic stock model depends on the lifetime distribution function
-     (ldf_type), the lifetime mean and the lifetime standard deviation.
+    (ldf_type), the lifetime mean and the lifetime standard deviation.
     """
     if stock is None and inflow is None:
         raise ValueError('Either stock or inflow must be passed to create a dynamic stock object.')

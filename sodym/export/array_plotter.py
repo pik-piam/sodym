@@ -11,23 +11,35 @@ from ..dimensions import DimensionSet
 from .helper import CustomNameDisplayer
 
 
-class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
+class ArrayPlotter(CustomNameDisplayer, ABC, PydanticBaseModel):
     """
     Abstract base class for array plotting classes. Subclasses exist for pyplot and plotly.
     Mostly recommended for plotting multi-dimensional arrays, where subplots and multiple lines are needed.
     """
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow', protected_namespaces=())
 
     array: NamedDimArray
+    """Values to plot, usually a Flow or Stock; sliced or summed along excess dimensions."""
     intra_line_dim: str
+    """Name of the dimension along which lines are plotted (if no x_array is given, this is also the x-axis)."""
     x_array: NamedDimArray = None
+    """Array with x-values for each line. Must have the same dimensions as array, or a subset of them. If None, the intra_line_dim is used as x-axis."""
     subplot_dim: str = None
+    """Name of the dimension by which to split the array into subplots. If None, the array is plotted in a single subplot."""
     linecolor_dim: str = None
+    """Name of the dimension along which to split the array into several lines within each subplot. If None, only one line is plotted per subplot."""
     fig: Any = None
+    """Pre-existing figure to plot on. If None, a new figure is created."""
     line_label: str = None
+    """Custom label for the line. If None, the respective item along linecolor_dim is used as label."""
     xlabel: str = None
+    """Custom label for the x-axis. If None, the name of the x_array or intra_line_dim is used."""
     ylabel: str = None
+    """Custom label for the y-axis. If None, the name of the array is used."""
     title: str = None
+    """Title of the plot, if desired."""
+    __pydantic_extra__: dict[str, Any]
 
     @model_validator(mode="after")
     def check_colors(self):

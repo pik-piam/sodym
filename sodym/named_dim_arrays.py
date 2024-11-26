@@ -226,9 +226,9 @@ class NamedDimArray(PydanticBaseModel):
         return df
 
     def split(self, dim_letter: str) -> dict:
-        """Reverse the named_dim_array_stack, returns a dictionary of `NamedDimArray`s
+        """Reverse the named_dim_array_stack, returns a dictionary of NamedDimArray objects
         associated with the item in the dimension that has been split.
-        Method can be applied to `NamedDimArray`s, `StockArray`s, `Parameter`s and `Flow`s.
+        Method can be applied to classes NamedDimArray, StockArray, Parameter and Flow.
         """
         return {item: self[{dim_letter: item}] for item in self.dims[dim_letter].items}
 
@@ -239,33 +239,42 @@ class NamedDimArray(PydanticBaseModel):
 
 class SubArrayHandler:
     """This class handles subsets of the 'values' numpy array of a NamedDimArray object, created by slicing along one or
-    several dimensions. It specifies the behavior of foo[definition] = bar and foo = bar[definition], where foo and bar
-    are NamedDimArray objects. This is done via the __getitem__ and __setitem__ methods of the NamedDimArray class.
+    several dimensions. It specifies the behavior of `foo[definition] = bar` and `foo = bar[definition]`, where `foo` and `bar`
+    are NamedDimArray objects. This is done via the `__getitem__` and `__setitem__` methods of the NamedDimArray class.
 
     It returns either
-    - a new NamedDimArray object (via the to_nda() function), or
-    - a pointer to a subset of the values array of the parent NamedDimArray object, via the values_pointer attribute.
+
+    - a new NamedDimArray object (via the `to_nda()` function), or
+    - a pointer to a subset of the values array of the parent NamedDimArray object, via the `values_pointer` attribute.
 
     There are several possible syntaxes for the definition of the subset:
-    - An ellipsis slice '...' can be used to address all the values of the original NamedDimArray object
-        Example: foo[...] addresses all values of the NamedDimArray object foo.
+
+    - An ellipsis slice `...` can be used to address all the values of the original NamedDimArray object
+
+      *Example:* `foo[...]` addresses all values of the NamedDimArray object `foo`.
     - A dictionary can be used to define a subset along one or several dimensions.
-      The dictionary has the form {'dim_letter': 'item_name'}.
-        Example: foo[{'e': 'C'}] addresses all values where the element is carbon,
+      The dictionary has the form `{'dim_letter': 'item_name'}`.
+
+      *Example:* `foo[{'e': 'C'}]` addresses all values where the element is carbon,
+
       Instead of a single 'item_name', a list of 'item_names' can be passed.
-        Example: foo[{'e': 'C', 'r': ['EUR', 'USA']}] addresses all values where the element is carbon and the region is
-        Europe or the USA.
+
+      *Example:* `foo[{'e': 'C', 'r': ['EUR', 'USA']}]` addresses all values where the element is carbon and the region is
+      Europe or the USA.
     - Instead of a dictionary, an item name can be passed directly. In this case, the dimension is inferred from the
       item name.
       Throws an error if the item name is not unique, i.e. occurs in more than one dimension.
-        Example: foo['C'] addresses all values where the element is carbon
-      Several comma-separated item names can be passed, which appear in __getitem__ and __setitem__ methods as a tuple.
+
+      *Example:* `foo['C']` addresses all values where the element is carbon
+
+      Several comma-separated item names can be passed, which appear in `__getitem__` and `__setitem__` methods as a tuple.
       Those can either be in the same dimension or in different dimensions.
-        Example: foo['C', 'EUR', 'USA'] addresses all values where the element is carbon and the region is Europe or the
-        USA.
+
+      *Example:* `foo['C', 'EUR', 'USA']` addresses all values where the element is carbon and the region is Europe or the
+      USA.
 
     Note that does not inherit from NamedDimArray, so it is not a NamedDimArray object itself.
-    However, one can use it to create a NamedDimArray object with the to_nda() method.
+    However, one can use it to create a NamedDimArray object with the `to_nda()` method.
     """
 
     def __init__(self, named_dim_array: NamedDimArray, definition):
@@ -378,7 +387,7 @@ class Process(PydanticBaseModel):
     Flows are defined between two processes. Stocks are connected to a process.
     Processes do not contain values themselves.
 
-    Processes get an ID by the order they are defined in the :py:attribute:`MFASystem.definition`.
+    Processes get an ID by the order they are defined in the :py:attribute::`MFASystem.definition`.
     The process with ID 0 necessarily contains everything outside the system boundary.
     """
 

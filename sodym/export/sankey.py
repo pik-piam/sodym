@@ -1,5 +1,5 @@
 from pydantic import BaseModel as PydanticBaseModel, model_validator, ConfigDict
-from typing import Optional
+from typing import Optional, Any
 import numpy as np
 import plotly.graph_objects as go
 import plotly as pl
@@ -11,7 +11,7 @@ from .helper import CustomNameDisplayer
 
 class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow', protected_namespaces=())
 
     mfa: MFASystem
     slice_dict: Optional[dict] = {}  # for selection of a subset of the data; all other dimensions are summed over
@@ -21,6 +21,7 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
     flow_color: Optional[str] = 'hsl(230,20,70)'  # used if split_flows_by is None or splitting dimension not in flow
     exclude_processes: Optional[list[str]] = ["sysenv"]
     exclude_flows: Optional[list[str]] = []
+    __pydantic_extra__: dict[str, Any]
 
     @model_validator(mode="after")
     def check_colors(self):
