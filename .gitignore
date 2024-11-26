@@ -6,3 +6,5 @@ dist/
 docs/build
 docs/source/_autosummary
 poetry.lock
+uv.lock
+sodym.egg-info
