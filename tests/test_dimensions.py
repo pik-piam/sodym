@@ -8,7 +8,7 @@ def test_validate_dimension_set():
     # example valid DimensionSet
     dimensions = [
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
-        {'name': 'place', 'letter': 'p', 'items': ['World', ]}
+        {'name': 'place', 'letter': 'p', 'items': ['World']}
     ]
     DimensionSet(dim_list=dimensions)
 
@@ -24,7 +24,7 @@ def test_validate_dimension_set():
 def test_get_subset():
     subset_dimensions = [
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
-        {'name': 'place', 'letter': 'p', 'items': ['World', ]},
+        {'name': 'place', 'letter': 'p', 'items': ['World']},
     ]
     material_dimension = {'name': 'material', 'letter': 'm', 'items': ['material_0', 'material_1']}
 

@@ -10,7 +10,7 @@ from sodym.named_dim_array_helper import named_dim_array_stack
 dimension_set = DimensionSet(
     dim_list = [
         {'name': 'time', 'letter': 't', 'items': [1990, 2000, 2010]},
-        {'name': 'place', 'letter': 'p', 'items': ['World', ]}
+        {'name': 'place', 'letter': 'p', 'items': ['World']}
     ]
 )
 

@@ -20,11 +20,11 @@ sodym dependencies are managed with [pip](https://pypi.org/project/pip/).
 
 To install as a user: run `python -m pip install sodym@git+https://github.com/pik-piam/sodym.git`
 
-To install as a developer, assuming you already have python installed:
+To install as a developer:
 
 1. Clone the sodym repository using git.
-2. From the project main directory, run `pip install -e ".[test]"` to obtain all the necessary
-dependencies, including those for running the tests.
+2. From the project main directory, run `pip install -e ".[test,docs,examples]"` to obtain all the necessary
+dependencies, including those for running the tests, making the documentation, and running the examples.
 
 Note that it is advisable to do this within a virtual environment.
 

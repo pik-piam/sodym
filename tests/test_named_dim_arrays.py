@@ -27,15 +27,15 @@ def test_named_dim_array_validations():
     dims = DimensionSet(dim_list=[local_places, time])
 
     # example with values with the correct shape
-    NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3], ]))
+    NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3]]))
 
     # example with dimensions reversed
     with pytest.raises(ValidationError):
-        NamedDimArray(name='numbers', dims=dims, values=np.array([[1], [2], [3], ]))
+        NamedDimArray(name='numbers', dims=dims, values=np.array([[1], [2], [3]]))
 
     # example with too many values
     with pytest.raises(ValidationError):
-        NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3, 4], ]))
+        NamedDimArray(name='numbers', dims=dims, values=np.array([[1, 2, 3, 4]]))
 
     # example with no values passed -> filled with zeros
     zero_values = NamedDimArray(name='numbers', dims=dims)

@@ -22,7 +22,7 @@ def test_validate_mfa_definition():
             processes=[],
             flows=[],
             stocks=[
-                {'name': 'stock_zero', 'dim_letters': ('t', )},
+                {'name': 'stock_zero', 'dim_letters': ('t')},
             ],
             parameters=[],
         )
