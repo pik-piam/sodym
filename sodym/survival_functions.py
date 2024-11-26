@@ -161,16 +161,22 @@ class LogNormalSurvival(StandardDeviationSurvivalModel):
             lifetime_mean[m, ...]
             / np.sqrt(
                 1
-                + (lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                / (lifetime_std[m, ...] * lifetime_std[m, ...]))
+                + (
+                    lifetime_mean[m, ...]
+                    * lifetime_mean[m, ...]
+                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                )
             )
         )
         # calculate parameter sigma of underlying normal distribution
         sg_ln = np.sqrt(
             np.log(
                 1
-                + (lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                / (lifetime_std[m, ...] * lifetime_std[m, ...]))
+                + (
+                    lifetime_mean[m, ...]
+                    * lifetime_mean[m, ...]
+                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                )
             )
         )
         # compute survial function

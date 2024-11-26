@@ -173,7 +173,7 @@ class StockDrivenDSM(DynamicStockModel):
         # First year:
         inflow[0, ...] = np.where(sf[0, 0, ...] != 0.0, self.stock.values[0] / sf[0, 0], 0.0)
         # Future decay of age-cohort of year 0.
-        stock_by_cohort[:, 0, ...] = (inflow[0, ...] * sf[:, 0, ...])
+        stock_by_cohort[:, 0, ...] = inflow[0, ...] * sf[:, 0, ...]
         outflow_by_cohort[0, 0, ...] = inflow[0, ...] - stock_by_cohort[0, 0, ...]
         # all other years:
         for m in range(1, self.n_t):  # for all years m, starting in second year
@@ -181,7 +181,7 @@ class StockDrivenDSM(DynamicStockModel):
             # outflow table is filled row-wise, for each year m.
             outflow_by_cohort[m, 0:m, ...] = (
                 stock_by_cohort[m - 1, 0:m, ...] - stock_by_cohort[m, 0:m, ...]
-                )
+            )
             # 2) Determine inflow from mass balance:
             if not do_correct_negative_inflow:  # if no correction for negative inflows is made
                 # allow for outflow during first year by rescaling with 1/sf[m,m]
