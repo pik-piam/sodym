@@ -14,17 +14,21 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", protected_namespaces=())
 
     mfa: MFASystem
-    slice_dict: Optional[
-        dict
-    ] = {}  # for selection of a subset of the data; all other dimensions are summed over
+    """MFA system to visualize."""
+    slice_dict: Optional[dict] = {}
+    """for selection of a subset of the data; all other dimensions are summed over"""
     split_flows_by: Optional[str] = None
+    """dimension name to split and color flows by; if None, all flows are colored the same"""
     color_scheme: Optional[str] = "blueish"
+    """used if split_flows_by is not None and splitting dimension is in flow."""
     node_color: Optional[str] = "gray"
-    flow_color: Optional[
-        str
-    ] = "hsl(230,20,70)"  # used if split_flows_by is None or splitting dimension not in flow
+    """color of the nodes (processes and stocks)"""
+    flow_color: Optional[str] = "hsl(230,20,70)"
+    """used if split_flows_by is None or splitting dimension not in flow."""
     exclude_processes: Optional[list[str]] = ["sysenv"]
+    """processes that won't show up in the plot; neither will flows to and from them"""
     exclude_flows: Optional[list[str]] = []
+    """flows that won't show up in the plot"""
     __pydantic_extra__: dict[str, Any]
 
     @model_validator(mode="after")

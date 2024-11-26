@@ -135,9 +135,10 @@ class InflowDrivenDSM(DynamicStockModel):
         """Compute outflow by cohort from changes in the stock by cohort and the known inflow."""
         outflow_by_cohort = np.zeros(self.shape_cohort)
         outflow_by_cohort[1:, :, ...] = -np.diff(stock_by_cohort, axis=0)
+        # allow for outflow in year 0 already
         outflow_by_cohort[self.t_diag_indices] = self.inflow.values - np.moveaxis(
             stock_by_cohort.diagonal(0, 0, 1), -1, 0
-        )  # allow for outflow in year 0 already
+        )
         return outflow_by_cohort
 
 
@@ -171,24 +172,25 @@ class StockDrivenDSM(DynamicStockModel):
         # construct the sf of a product of cohort tc remaining in the stock in year t
         # First year:
         inflow[0, ...] = np.where(sf[0, 0, ...] != 0.0, self.stock.values[0] / sf[0, 0], 0.0)
-        stock_by_cohort[:, 0, ...] = (
-            inflow[0, ...] * sf[:, 0, ...]
-        )  # Future decay of age-cohort of year 0.
+        # Future decay of age-cohort of year 0.
+        stock_by_cohort[:, 0, ...] = inflow[0, ...] * sf[:, 0, ...]
         outflow_by_cohort[0, 0, ...] = inflow[0, ...] - stock_by_cohort[0, 0, ...]
         # all other years:
         for m in range(1, self.n_t):  # for all years m, starting in second year
             # 1) Compute outflow from previous age-cohorts up to m-1
+            # outflow table is filled row-wise, for each year m.
             outflow_by_cohort[m, 0:m, ...] = (
                 stock_by_cohort[m - 1, 0:m, ...] - stock_by_cohort[m, 0:m, ...]
-            )  # outflow table is filled row-wise, for each year m.
+            )
             # 2) Determine inflow from mass balance:
             if not do_correct_negative_inflow:  # if no correction for negative inflows is made
+                # allow for outflow during first year by rescaling with 1/sf[m,m]
                 inflow[m, ...] = np.where(
                     sf[m, m, ...] != 0.0,
                     (self.stock.values[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0))
                     / sf[m, m, ...],
                     0.0,
-                )  # allow for outflow during first year by rescaling with 1/sf[m,m]
+                )
                 # 3) Add new inflow to stock and determine future decay of new age-cohort
                 stock_by_cohort[m::, m, ...] = inflow[m, ...] * sf[m::, m, ...]
                 outflow_by_cohort[m, m, ...] = inflow[m, ...] * (1 - sf[m, m, ...])
@@ -201,9 +203,8 @@ class StockDrivenDSM(DynamicStockModel):
                 inflow_test = self.stock.values[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0)
                 if inflow_test < 0:  # if stock-driven model would yield negative inflow
                     delta = -1 * inflow_test  # Delta > 0!
-                    inflow[
-                        m, ...
-                    ] = 0  # Set inflow to 0 and distribute mass balance gap onto remaining cohorts:
+                    # Set inflow to 0 and distribute mass balance gap onto remaining cohorts:
+                    inflow[m, ...] = 0
                     delta_percent = np.where(
                         stock_by_cohort[m, :, ...].sum(axis=0) != 0,
                         delta / stock_by_cohort[m, :, ...].sum(axis=0),
@@ -227,11 +228,10 @@ class StockDrivenDSM(DynamicStockModel):
                     )
                 else:  # If no negative inflow would occur
                     inflow[m, ...] = np.where(
-                        sf[m, m, ...] != 0,  # Else, inflow is 0.
+                        sf[m, m, ...] != 0,
+                        # allow for outflow during first year by rescaling with 1/sf[m,m]
                         (self.stock.values[m, ...] - stock_by_cohort[m, :, ...].sum(axis=0))
-                        / sf[
-                            m, m, ...
-                        ],  # allow for outflow during first year by rescaling with 1/sf[m,m]
+                        / sf[m, m, ...],
                         0.0,
                     )
                     # Add new inflow to stock and determine future decay of new age-cohort
