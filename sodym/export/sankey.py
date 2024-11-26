@@ -11,22 +11,28 @@ from .helper import CustomNameDisplayer
 
 class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow', protected_namespaces=())
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", protected_namespaces=())
 
     mfa: MFASystem
-    slice_dict: Optional[dict] = {}  # for selection of a subset of the data; all other dimensions are summed over
+    slice_dict: Optional[
+        dict
+    ] = {}  # for selection of a subset of the data; all other dimensions are summed over
     split_flows_by: Optional[str] = None
-    color_scheme: Optional[str] = 'blueish'
-    node_color: Optional[str] = 'gray'
-    flow_color: Optional[str] = 'hsl(230,20,70)'  # used if split_flows_by is None or splitting dimension not in flow
+    color_scheme: Optional[str] = "blueish"
+    node_color: Optional[str] = "gray"
+    flow_color: Optional[
+        str
+    ] = "hsl(230,20,70)"  # used if split_flows_by is None or splitting dimension not in flow
     exclude_processes: Optional[list[str]] = ["sysenv"]
     exclude_flows: Optional[list[str]] = []
     __pydantic_extra__: dict[str, Any]
 
     @model_validator(mode="after")
     def check_colors(self):
-        if self.split_flows_by is None and self.color_scheme != 'blueish':
-            raise ValueError("If flows are not split, color_scheme is not used. Use flow_color instead.")
+        if self.split_flows_by is None and self.color_scheme != "blueish":
+            raise ValueError(
+                "If flows are not split, color_scheme is not used. Use flow_color instead."
+            )
         return self
 
     @model_validator(mode="after")
@@ -35,7 +41,9 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
             if dim_letter not in self.mfa.dims.letters:
                 raise ValueError(f"Dimension {dim_letter} given in slice_dict not in DimensionSet.")
         if self.split_flows_by is not None and self.split_flows_by not in self.mfa.dims.names:
-            raise ValueError(f"Dimension {self.split_flows_by} given in split_flows_by not in DimensionSet")
+            raise ValueError(
+                f"Dimension {self.split_flows_by} given in split_flows_by not in DimensionSet"
+            )
         return self
 
     @model_validator(mode="after")
@@ -54,9 +62,13 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
 
     def get_nodes_and_links(self):
 
-        self.processes = [p for p in self.mfa.processes.values() if p.name not in self.exclude_processes]
+        self.processes = [
+            p for p in self.mfa.processes.values() if p.name not in self.exclude_processes
+        ]
         self.ids_in_sankey = {p.id: i for i, p in enumerate(self.processes)}
-        self.exclude_process_ids = [p.id for p in self.mfa.processes.values() if p.name in self.exclude_processes]
+        self.exclude_process_ids = [
+            p.id for p in self.mfa.processes.values() if p.name in self.exclude_processes
+        ]
 
         self.get_link_list()
         self.links = self.link_list.to_dict()
@@ -82,12 +94,18 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
         f_slice = f[slice_dict]
 
         if self.split_flows_by is not None and self.split_flows_by in f.dims.names:
-            splitting_letter_tuple= (self.mfa.dims[self.split_flows_by].letter,)
+            splitting_letter_tuple = (self.mfa.dims[self.split_flows_by].letter,)
             values = f_slice.sum_values_to(splitting_letter_tuple)
             for v, c in zip(values, self.colors):
                 self.link_list.append(label=label, source=source, target=target, color=c, value=v)
         else:
-            self.link_list.append(label=label, source=source, target=target, color=self.flow_color, value=f_slice.sum_values())
+            self.link_list.append(
+                label=label,
+                source=source,
+                target=target,
+                color=self.flow_color,
+                value=f_slice.sum_values(),
+            )
 
     def get_nodes_dict(self):
         return {
@@ -117,21 +135,29 @@ class PlotlySankeyPlotter(CustomNameDisplayer, PydanticBaseModel):
     def colors(self):
         if self.color_scheme == "blueish":
             n_max = 10
+
             def colors(n_colors):
                 return [f"hsl({240 - 20 * i},70%,50%)" for i in range(n_colors)]
+
         elif self.color_scheme == "antique":
             n_max = len(pl.colors.qualitative.Antique)
+
             def colors(n_colors):
-                return pl.colors.qualitative.Antique[: n_colors]
+                return pl.colors.qualitative.Antique[:n_colors]
+
         elif self.color_scheme == "viridis":
             n_max = np.inf
+
             def colors(n_colors):
                 return pl.colors.sample_colorscale("Viridis", n_colors + 1, colortype="rgb")
+
         else:
             raise ValueError("invalid color scheme")
 
         if self.n_colors > n_max:
-            raise ValueError(f"Too many colors ({self.n_colors}) requested for color scheme {self.color_scheme}")
+            raise ValueError(
+                f"Too many colors ({self.n_colors}) requested for color scheme {self.color_scheme}"
+            )
 
         return colors(self.n_colors)
 
@@ -150,7 +176,9 @@ class LinkList(PydanticBaseModel):
     _links: Optional[list[Link]] = []
 
     def append(self, label: str, source: int, target: int, color: str, value: float):
-        self._links.append(Link(label=label, source=source, target=target, color=color, value=value))
+        self._links.append(
+            Link(label=label, source=source, target=target, color=color, value=value)
+        )
 
     def to_dict(self):
         return {

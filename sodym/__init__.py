@@ -1,5 +1,9 @@
 from sodym.mfa_definition import (
-    MFADefinition, FlowDefinition, DimensionDefinition, StockDefinition, ParameterDefinition
+    MFADefinition,
+    FlowDefinition,
+    DimensionDefinition,
+    StockDefinition,
+    ParameterDefinition,
 )
 from sodym.mfa_system import MFASystem
 from sodym.dimensions import DimensionSet, Dimension

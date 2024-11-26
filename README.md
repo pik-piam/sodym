@@ -16,23 +16,17 @@ https://github.com/IndEcol/ODYM<br>
 
 ## Installation
 
-sodym dependencies are managed with [poetry](https://python-poetry.org/), which creates a [virtual environment](https://docs.python.org/3/tutorial/venv.html) and installs dependencies automatically. The process is quite simple:
+sodym dependencies are managed with [pip](https://pypi.org/project/pip/).
+
+To install as a user: run `python -m pip install sodym@git+https://github.com/pik-piam/sodym.git`
+
+To install as a developer:
 
 1. Clone the sodym repository using git.
-2. [Install poetry](https://python-poetry.org/docs/#installation)
-   - *Optional*: Configure poetry to create your virtual environment in the project folder via<br>`poetry config virtualenvs.in-project true`
-3. From the project main directory, run `poetry install` to obtain all the necessary dependencies.
+2. From the project main directory, run `pip install -e ".[test,docs,examples]"` to obtain all the necessary
+dependencies, including those for running the tests, making the documentation, and running the examples.
 
-To execute python commands using the virtual environment of this project, use `poetry run <command>`, or activate the environment via `[/path/to/].venv/Scripts/activate`.
-Further information can be found in the documentations of poetry and virtual environments linked above.
-
-## Documentation
-
-To build and view the documentation, follow these steps:
-
-1. From the main directory, run `poetry install --with docs`
-2. Navigate to the `docs` subdirectory, and run `poetry run make html`.
-3. Open the file `docs/build/html/index.html` to view the documentation.
+Note that it is advisable to do this within a virtual environment.
 
 ## Examples
 
