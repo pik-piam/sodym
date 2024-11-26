@@ -47,7 +47,17 @@ import pandas as pd
 
 from sodym.data_reader import DataReader
 from sodym import (
-    DimensionDefinition, Dimension, DimensionSet, ParameterDefinition, Parameter, Process, FlowDefinition, Flow, StockDefinition, MFASystem, NamedDimArray
+    DimensionDefinition,
+    Dimension,
+    DimensionSet,
+    ParameterDefinition,
+    Parameter,
+    Process,
+    FlowDefinition,
+    Flow,
+    StockDefinition,
+    MFASystem,
+    NamedDimArray,
 )
 from sodym.flow_helper import make_empty_flows
 from sodym.stock_helper import make_empty_stocks
@@ -61,40 +71,77 @@ from sodym.export.array_plotter import PlotlyArrayPlotter
 
 # %%
 dimension_definitions = [
-    DimensionDefinition(letter='t', name='Time', dtype=int),
-    DimensionDefinition(letter='e', name='Material', dtype=str)
+    DimensionDefinition(letter="t", name="Time", dtype=int),
+    DimensionDefinition(letter="e", name="Material", dtype=str),
 ]
 
 parameter_definitions = [
-    ParameterDefinition(name='eol machines', dim_letters=('t', )),
-    ParameterDefinition(name='eol buildings', dim_letters=('t', )),
-    ParameterDefinition(name='composition eol machines', dim_letters=('e', )),
-    ParameterDefinition(name='composition eol buildings', dim_letters=('e', )),
-    ParameterDefinition(name='shredder yield', dim_letters=('e', )),
-    ParameterDefinition(name='demolition yield', dim_letters=('e', )),
-    ParameterDefinition(name='remelting yield', dim_letters=('e', )),
+    ParameterDefinition(name="eol machines", dim_letters=("t",)),
+    ParameterDefinition(name="eol buildings", dim_letters=("t",)),
+    ParameterDefinition(name="composition eol machines", dim_letters=("e",)),
+    ParameterDefinition(name="composition eol buildings", dim_letters=("e",)),
+    ParameterDefinition(name="shredder yield", dim_letters=("e",)),
+    ParameterDefinition(name="demolition yield", dim_letters=("e",)),
+    ParameterDefinition(name="remelting yield", dim_letters=("e",)),
 ]
 
 # %%
-process_names = ['sysenv', 'shredder', 'demolition', 'remelting', 'landfills', 'slag piles']
+process_names = [
+    "sysenv",
+    "shredder",
+    "demolition",
+    "remelting",
+    "landfills",
+    "slag piles",
+]
 processes = {name: Process(name=name, id=index) for index, name in enumerate(process_names)}
 
 # %%
 flow_definitions = [
-    FlowDefinition(from_process_name='sysenv', to_process_name='shredder', dim_letters=('t', 'e')),
-    FlowDefinition(from_process_name='sysenv', to_process_name='demolition', dim_letters=('t', 'e')),
-    FlowDefinition(from_process_name='shredder', to_process_name='remelting', dim_letters=('t', 'e')),  # scrap type 1
-    FlowDefinition(from_process_name='shredder', to_process_name='sysenv', dim_letters=('t', 'e')),  # shredder residue
-    FlowDefinition(from_process_name='demolition', to_process_name='remelting', dim_letters=('t', 'e')),  # scrap type 2
-    FlowDefinition(from_process_name='demolition', to_process_name='landfills', dim_letters=('t', 'e')),  # loss
-    FlowDefinition(from_process_name='remelting', to_process_name='slag piles', dim_letters=('t', 'e')),  # secondary steel
-    FlowDefinition(from_process_name='remelting', to_process_name='sysenv', dim_letters=('t', 'e')),  # slag
+    FlowDefinition(from_process_name="sysenv", to_process_name="shredder", dim_letters=("t", "e")),
+    FlowDefinition(
+        from_process_name="sysenv", to_process_name="demolition", dim_letters=("t", "e")
+    ),
+    FlowDefinition(
+        from_process_name="shredder",
+        to_process_name="remelting",
+        dim_letters=("t", "e"),
+    ),  # scrap type 1
+    FlowDefinition(
+        from_process_name="shredder", to_process_name="sysenv", dim_letters=("t", "e")
+    ),  # shredder residue
+    FlowDefinition(
+        from_process_name="demolition",
+        to_process_name="remelting",
+        dim_letters=("t", "e"),
+    ),  # scrap type 2
+    FlowDefinition(
+        from_process_name="demolition",
+        to_process_name="landfills",
+        dim_letters=("t", "e"),
+    ),  # loss
+    FlowDefinition(
+        from_process_name="remelting",
+        to_process_name="slag piles",
+        dim_letters=("t", "e"),
+    ),  # secondary steel
+    FlowDefinition(
+        from_process_name="remelting", to_process_name="sysenv", dim_letters=("t", "e")
+    ),  # slag
 ]
 
 # %%
 stock_definitions = [
-    StockDefinition(name='landfills', process='landfills', dim_letters=('t', 'e'),),
-    StockDefinition(name='slag piles', process='slag piles', dim_letters=('t', 'e'),),
+    StockDefinition(
+        name="landfills",
+        process="landfills",
+        dim_letters=("t", "e"),
+    ),
+    StockDefinition(
+        name="slag piles",
+        process="slag piles",
+        dim_letters=("t", "e"),
+    ),
 ]
 
 
@@ -105,21 +152,34 @@ stock_definitions = [
 # %%
 class SimpleMFA(MFASystem):
     def compute(self):
-        self.flows['sysenv => shredder'][...] = self.parameters['eol machines'] * self.parameters['composition eol machines']
-        self.flows['sysenv => demolition'][...] = self.parameters['eol buildings'] * self.parameters['composition eol buildings']
-        self.flows['shredder => remelting'][...] = self.flows['sysenv => shredder'] * self.parameters['shredder yield']
-        self.flows['shredder => sysenv'][...] = self.flows['sysenv => shredder'] * (1 - self.parameters['shredder yield'])
-        self.flows['demolition => remelting'][...] = self.flows['sysenv => demolition'] * self.parameters['demolition yield']
-        self.flows['demolition => landfills'][...] = self.flows['sysenv => demolition'] * (1 - self.parameters['demolition yield'])
-        self.flows['remelting => sysenv'][...] = (
-            self.flows['shredder => remelting'] + self.flows['demolition => remelting']) * self.parameters['remelting yield']
-        self.flows['remelting => slag piles'][...] = (
-            self.flows['shredder => remelting'] + self.flows['demolition => remelting']) * (1 - self.parameters['remelting yield'])
-        self.stocks['landfills'].inflow[...] = self.flows['demolition => landfills']
-        self.stocks['landfills'].compute()
-        self.stocks['slag piles'].inflow[...] = self.flows['shredder => remelting']
-        self.stocks['slag piles'].compute()
-
+        self.flows["sysenv => shredder"][...] = (
+            self.parameters["eol machines"] * self.parameters["composition eol machines"]
+        )
+        self.flows["sysenv => demolition"][...] = (
+            self.parameters["eol buildings"] * self.parameters["composition eol buildings"]
+        )
+        self.flows["shredder => remelting"][...] = (
+            self.flows["sysenv => shredder"] * self.parameters["shredder yield"]
+        )
+        self.flows["shredder => sysenv"][...] = self.flows["sysenv => shredder"] * (
+            1 - self.parameters["shredder yield"]
+        )
+        self.flows["demolition => remelting"][...] = (
+            self.flows["sysenv => demolition"] * self.parameters["demolition yield"]
+        )
+        self.flows["demolition => landfills"][...] = self.flows["sysenv => demolition"] * (
+            1 - self.parameters["demolition yield"]
+        )
+        self.flows["remelting => sysenv"][...] = (
+            self.flows["shredder => remelting"] + self.flows["demolition => remelting"]
+        ) * self.parameters["remelting yield"]
+        self.flows["remelting => slag piles"][...] = (
+            self.flows["shredder => remelting"] + self.flows["demolition => remelting"]
+        ) * (1 - self.parameters["remelting yield"])
+        self.stocks["landfills"].inflow[...] = self.flows["demolition => landfills"]
+        self.stocks["landfills"].compute()
+        self.stocks["slag piles"].inflow[...] = self.flows["shredder => remelting"]
+        self.stocks["slag piles"].compute()
 
 
 # %% [markdown]
@@ -131,47 +191,62 @@ class SimpleMFA(MFASystem):
 
 # %%
 class CustomDataReader(DataReader):
-
     def __init__(self, path_to_time_parameters, path_to_element_parameters):
         self.time_parameters = pd.read_excel(path_to_time_parameters, index_col=0)
         self.element_parameters = pd.read_excel(path_to_element_parameters, index_col=0)
 
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
-        if dimension_definition.letter == 't':
+        if dimension_definition.letter == "t":
             data = list(self.time_parameters.index)
-        elif dimension_definition.letter == 'e':
+        elif dimension_definition.letter == "e":
             data = list(self.element_parameters.index)
-        return Dimension(name=dimension_definition.name, letter=dimension_definition.letter, items=data)
+        return Dimension(
+            name=dimension_definition.name,
+            letter=dimension_definition.letter,
+            items=data,
+        )
 
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        if dims.letters == ('t', ):
+        if dims.letters == ("t",):
             data = self.time_parameters[parameter].values
-        elif dims.letters == ('e', ):
+        elif dims.letters == ("e",):
             data = self.element_parameters[parameter].values
         return Parameter(dims=dims, values=data)
 
 
 # %%
 data_reader = CustomDataReader(
-    path_to_time_parameters='example2_temporal_parameters.xlsx',
-    path_to_element_parameters='example2_material_parameters.xlsx'
+    path_to_time_parameters="example2_temporal_parameters.xlsx",
+    path_to_element_parameters="example2_material_parameters.xlsx",
 )
 dimensions = data_reader.read_dimensions(dimension_definitions)
 parameters = data_reader.read_parameters(parameter_definitions, dims=dimensions)
 
 # %%
-flows = make_empty_flows(processes=processes, flow_definitions=flow_definitions, dims=dimensions,
-                         naming=process_names_with_arrow)
+flows = make_empty_flows(
+    processes=processes,
+    flow_definitions=flow_definitions,
+    dims=dimensions,
+    naming=process_names_with_arrow,
+)
 
 # %%
-stocks = make_empty_stocks(stock_definitions, dims=dimensions, processes=processes)  # flow-driven stock objects
+stocks = make_empty_stocks(
+    stock_definitions, dims=dimensions, processes=processes
+)  # flow-driven stock objects
 
 # %% [markdown]
 # ## 4. Put the pieces together
 # Create a SimpleMFA instance by passing the loaded dimension and parameter data, as well as the initialised flow and stock objects. Solve the system equations by running the `compute` method.
 
 # %%
-mfa_example = SimpleMFA(dims=dimensions, processes=processes, parameters=parameters, flows=flows, stocks=stocks)
+mfa_example = SimpleMFA(
+    dims=dimensions,
+    processes=processes,
+    parameters=parameters,
+    flows=flows,
+    stocks=stocks,
+)
 mfa_example.compute()
 
 # %% [markdown]
@@ -183,25 +258,27 @@ mfa_example.compute()
 # Clicking on the `Fe` entry of the plot legend hides it and adjusts the y-axis to better display the trace elements `Mn` and `Cu`.
 
 # %%
-remelted = mfa_example.flows['remelting => sysenv']
+remelted = mfa_example.flows["remelting => sysenv"]
 
 plotter = PlotlyArrayPlotter(
     array=remelted,
-    intra_line_dim='Time',
-    linecolor_dim='Material',
-    title="GDP-per-capita")
+    intra_line_dim="Time",
+    linecolor_dim="Material",
+    title="GDP-per-capita",
+)
 fig = plotter.plot(do_show=True)
 
 
 # %%
 remelted_shares = NamedDimArray(dims=remelted.dims)
-remelted_shares[...] = remelted / remelted.sum_nda_over(('e',))
+remelted_shares[...] = remelted / remelted.sum_nda_over(("e",))
 
 plotter = PlotlyArrayPlotter(
     array=remelted_shares,
-    intra_line_dim='Time',
-    linecolor_dim='Material',
-    title="Share of copper and manganese in secondary steel")
+    intra_line_dim="Time",
+    linecolor_dim="Material",
+    title="Share of copper and manganese in secondary steel",
+)
 fig = plotter.plot(do_show=True)
 
 
@@ -214,13 +291,14 @@ fig = plotter.plot(do_show=True)
 # **How much manganese is lost in the remelting process assuming that all available scrap is remelted?**
 
 # %%
-manganese_to_slag = mfa_example.flows['remelting => slag piles']['Mn']
+manganese_to_slag = mfa_example.flows["remelting => slag piles"]["Mn"]
 
 plotter = PlotlyArrayPlotter(
     array=manganese_to_slag,
-    intra_line_dim='Time',
-    ylabel='kt/yr',
-    title='Manganese lost in the remelting process')
+    intra_line_dim="Time",
+    ylabel="kt/yr",
+    title="Manganese lost in the remelting process",
+)
 fig = plotter.plot(do_show=True)
 
 # %% [markdown]
@@ -233,45 +311,60 @@ fig = plotter.plot(do_show=True)
 
 # %%
 parameters_a = deepcopy(parameters)
-parameters_a['shredder yield'].set_values(np.array([0.92, 0.075, 0.92]))
+parameters_a["shredder yield"].set_values(np.array([0.92, 0.075, 0.92]))
 
-mfa_example_a = SimpleMFA(dims=dimensions, processes=processes, parameters=parameters_a, flows=deepcopy(flows), stocks=deepcopy(stocks))
+mfa_example_a = SimpleMFA(
+    dims=dimensions,
+    processes=processes,
+    parameters=parameters_a,
+    flows=deepcopy(flows),
+    stocks=deepcopy(stocks),
+)
 mfa_example_a.compute()
 
 # %%
 parameters_b = deepcopy(parameters)
-parameters_b['eol buildings'][...] = 1.25 * parameters_b['eol buildings']
+parameters_b["eol buildings"][...] = 1.25 * parameters_b["eol buildings"]
 
-mfa_example_b = SimpleMFA(dims=dimensions, processes=processes, parameters=parameters_b, flows=deepcopy(flows), stocks=deepcopy(stocks))
+mfa_example_b = SimpleMFA(
+    dims=dimensions,
+    processes=processes,
+    parameters=parameters_b,
+    flows=deepcopy(flows),
+    stocks=deepcopy(stocks),
+)
 mfa_example_b.compute()
 
 # %%
-flow_a = mfa_example_a.flows['remelting => sysenv']
-shares_shredder = flow_a / flow_a.sum_nda_over(('e'))
+flow_a = mfa_example_a.flows["remelting => sysenv"]
+shares_shredder = flow_a / flow_a.sum_nda_over(("e"))
 
-flow_b = mfa_example_b.flows['remelting => sysenv']
-shares_demolition = flow_b / flow_b.sum_nda_over(('e'))
+flow_b = mfa_example_b.flows["remelting => sysenv"]
+shares_demolition = flow_b / flow_b.sum_nda_over(("e"))
 
 plotter = PlotlyArrayPlotter(
     array=remelted_shares,
-    intra_line_dim='Time',
-    subplot_dim='Material',
-    line_label='Standard',
-    title='Material concentration in secondary steel')
+    intra_line_dim="Time",
+    subplot_dim="Material",
+    line_label="Standard",
+    title="Material concentration in secondary steel",
+)
 fig = plotter.plot()
 plotter = PlotlyArrayPlotter(
     array=shares_shredder,
-    intra_line_dim='Time',
-    subplot_dim='Material',
-    line_label='Updated shredder yield',
-    fig=fig)
+    intra_line_dim="Time",
+    subplot_dim="Material",
+    line_label="Updated shredder yield",
+    fig=fig,
+)
 fig = plotter.plot()
 plotter = PlotlyArrayPlotter(
     array=shares_demolition,
-    intra_line_dim='Time',
-    subplot_dim='Material',
-    line_label='Increased buildings demolition',
-    fig=fig)
+    intra_line_dim="Time",
+    subplot_dim="Material",
+    line_label="Increased buildings demolition",
+    fig=fig,
+)
 fig = plotter.plot(do_show=True)
 
 # %% [markdown]

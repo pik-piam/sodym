@@ -1,3 +1,17 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.16.4
+#   kernelspec:
+#     display_name: .venv
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # # Example 5. Estimating the material content of the global vehicle fleet
 #
@@ -46,7 +60,15 @@ import plotly.express as px
 
 from sodym.data_reader import DataReader
 from sodym import (
-    DimensionDefinition, Dimension, DimensionSet, ParameterDefinition, Parameter, Process, FlowDefinition, StockDefinition, MFASystem,
+    DimensionDefinition,
+    Dimension,
+    DimensionSet,
+    ParameterDefinition,
+    Parameter,
+    Process,
+    FlowDefinition,
+    StockDefinition,
+    MFASystem,
 )
 from sodym.stocks import InflowDrivenDSM
 from sodym.survival_functions import NormalSurvival
@@ -60,69 +82,91 @@ from sodym.stock_helper import make_empty_stocks
 
 # %%
 dimension_definitions = [
-    DimensionDefinition(letter='t', name='time', dtype=int),
-    DimensionDefinition(letter='r', name='region', dtype=str),
-    DimensionDefinition(letter='m', name='material', dtype=str),
-    DimensionDefinition(letter='w', name='waste', dtype=str),
+    DimensionDefinition(letter="t", name="time", dtype=int),
+    DimensionDefinition(letter="r", name="region", dtype=str),
+    DimensionDefinition(letter="m", name="material", dtype=str),
+    DimensionDefinition(letter="w", name="waste", dtype=str),
 ]
 
 parameter_definitions = [
-    ParameterDefinition(name='vehicle lifetime', dim_letters=('r', )),
-    ParameterDefinition(name='vehicle material content', dim_letters=('m', )),
-    ParameterDefinition(name='vehicle new registration', dim_letters=('t', 'r')),
-    ParameterDefinition(name='vehicle stock', dim_letters=('r', )),
-    ParameterDefinition(name='eol recovery rate', dim_letters=('m', 'w'))
+    ParameterDefinition(name="vehicle lifetime", dim_letters=("r",)),
+    ParameterDefinition(name="vehicle material content", dim_letters=("m",)),
+    ParameterDefinition(name="vehicle new registration", dim_letters=("t", "r")),
+    ParameterDefinition(name="vehicle stock", dim_letters=("r",)),
+    ParameterDefinition(name="eol recovery rate", dim_letters=("m", "w")),
 ]
 
 # %%
-process_names = ['sysenv', 'market', 'use', 'waste', 'scrap']
+process_names = ["sysenv", "market", "use", "waste", "scrap"]
 processes = {name: Process(name=name, id=index) for index, name in enumerate(process_names)}
 
 # %%
 flow_definitions = [
-    FlowDefinition(from_process_name='sysenv', to_process_name='market', dim_letters=('t', 'r')),
-    FlowDefinition(from_process_name='market', to_process_name='use', dim_letters=('t', 'm', 'r')),
-    FlowDefinition(from_process_name='use', to_process_name='waste', dim_letters=('t', 'm', 'r')),
-    FlowDefinition(from_process_name='waste', to_process_name='scrap', dim_letters=('t', 'w', 'm')),
-    FlowDefinition(from_process_name='waste', to_process_name='sysenv', dim_letters=('t', 'm')),
-    FlowDefinition(from_process_name='scrap', to_process_name='sysenv', dim_letters=('t', 'w', 'm')),
+    FlowDefinition(from_process_name="sysenv", to_process_name="market", dim_letters=("t", "r")),
+    FlowDefinition(from_process_name="market", to_process_name="use", dim_letters=("t", "m", "r")),
+    FlowDefinition(from_process_name="use", to_process_name="waste", dim_letters=("t", "m", "r")),
+    FlowDefinition(from_process_name="waste", to_process_name="scrap", dim_letters=("t", "w", "m")),
+    FlowDefinition(from_process_name="waste", to_process_name="sysenv", dim_letters=("t", "m")),
+    FlowDefinition(
+        from_process_name="scrap", to_process_name="sysenv", dim_letters=("t", "w", "m")
+    ),
 ]
 stock_definitions = [
-    StockDefinition(name='in use', process='use', dim_letters=('t', 'r'),)
+    StockDefinition(
+        name="in use",
+        process="use",
+        dim_letters=("t", "r"),
+    )
 ]
 
 # %%
 class VehicleMFA(MFASystem):
     """We just need to define the compute method with our system equations,
     as all the other things we need are inherited from the MFASystem class."""
+
     def compute(self):
         stock_diff = self.compute_stock()
         self.compute_flows()
         return stock_diff
 
     def compute_stock(self):
-        self.flows['sysenv => market'][...] = self.parameters['vehicle new registration']
-        self.stocks['in use'].inflow[...] = self.flows['sysenv => market']
+        self.flows["sysenv => market"][...] = self.parameters["vehicle new registration"]
+        self.stocks["in use"].inflow[...] = self.flows["sysenv => market"]
         survival_model = NormalSurvival(
-            dims=self.stocks['in use'].inflow.dims,
-            lifetime_mean=self.parameters['vehicle lifetime'].values,
-            lifetime_std=self.parameters['vehicle lifetime'].values*0.3
+            dims=self.stocks["in use"].inflow.dims,
+            lifetime_mean=self.parameters["vehicle lifetime"].values,
+            lifetime_std=self.parameters["vehicle lifetime"].values * 0.3,
         )
-        if not isinstance(self.stocks['in use'], InflowDrivenDSM):
-            self.stocks['in use'] = self.stocks['in use'].to_stock_type(InflowDrivenDSM, survival_model=survival_model)
+        if not isinstance(self.stocks["in use"], InflowDrivenDSM):
+            self.stocks["in use"] = self.stocks["in use"].to_stock_type(
+                InflowDrivenDSM, survival_model=survival_model
+            )
         else:
-            self.stocks['in use'].survival_model = survival_model
-        self.stocks['in use'].compute()
-        stock_diff = self.get_new_array(dim_letters=('r'))
-        stock_diff[...] = 1000 * self.parameters['vehicle stock'] - self.stocks['in use'].stock[{'t': 2015}]
+            self.stocks["in use"].survival_model = survival_model
+        self.stocks["in use"].compute()
+        stock_diff = self.get_new_array(dim_letters=("r"))
+        stock_diff[...] = (
+            1000 * self.parameters["vehicle stock"] - self.stocks["in use"].stock[{"t": 2015}]
+        )
         return (stock_diff * 1e-6).to_df()  # in millions
 
     def compute_flows(self):
-        self.flows['market => use'][...] = self.parameters['vehicle material content'] * self.parameters['vehicle new registration'] * 1e-9
-        self.flows['use => waste'][...] = self.parameters['vehicle material content'] * self.stocks['in use'].outflow * 1e-9
-        self.flows['waste => scrap'][...] = self.parameters['eol recovery rate'] * self.flows['use => waste']
-        self.flows['scrap => sysenv'][...] = self.flows['waste => scrap']
-        self.flows['waste => sysenv'][...] = self.flows['use => waste'] - self.flows['waste => scrap']
+        self.flows["market => use"][...] = (
+            self.parameters["vehicle material content"]
+            * self.parameters["vehicle new registration"]
+            * 1e-9
+        )
+        self.flows["use => waste"][...] = (
+            self.parameters["vehicle material content"] * self.stocks["in use"].outflow * 1e-9
+        )
+        self.flows["waste => scrap"][...] = (
+            self.parameters["eol recovery rate"] * self.flows["use => waste"]
+        )
+        self.flows["scrap => sysenv"][...] = self.flows["waste => scrap"]
+        self.flows["waste => sysenv"][...] = (
+            self.flows["use => waste"] - self.flows["waste => scrap"]
+        )
+
 
 # %% [markdown]
 # ## 3. Define our data reader
@@ -135,6 +179,7 @@ class CustomDataReader(DataReader):
     DataReader class, and loop over the methods `read_dimension` and `read_parameter_values`
     that we specify for our usecase here.
     """
+
     def __init__(self, data_directory):
         self.data_directory = data_directory
 
@@ -143,58 +188,73 @@ class CustomDataReader(DataReader):
         return list(range(2012, 2018))
 
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
-        if (dim_name := dimension_definition.name) == 'region':
-            data = pd.read_excel(join(self.data_directory, 'vehicle_lifetime.xlsx'), 'Data')
-            other_data = pd.read_excel(join(self.data_directory, 'vehicle_stock.xlsx'), 'Data')
+        if (dim_name := dimension_definition.name) == "region":
+            data = pd.read_excel(join(self.data_directory, "vehicle_lifetime.xlsx"), "Data")
+            other_data = pd.read_excel(join(self.data_directory, "vehicle_stock.xlsx"), "Data")
             data = (set(data[dim_name].unique())).intersection(set(other_data[dim_name].unique()))
             data = list(data)
             data.sort()
-        elif (dim_name := dimension_definition.name) in ['waste', 'material']:
-            data = pd.read_excel(join(self.data_directory, 'eol_recovery_rate.xlsx'), 'Data')
+        elif (dim_name := dimension_definition.name) in ["waste", "material"]:
+            data = pd.read_excel(join(self.data_directory, "eol_recovery_rate.xlsx"), "Data")
             data.columns = [x.lower() for x in data.columns]
             data = list(data[dim_name].unique())
             data.sort()
-        elif dimension_definition.name == 'time':
+        elif dimension_definition.name == "time":
             data = self.years
-        return Dimension(name=dimension_definition.name, letter=dimension_definition.letter, items=data)
+        return Dimension(
+            name=dimension_definition.name,
+            letter=dimension_definition.letter,
+            items=data,
+        )
 
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        data = pd.read_excel(join(self.data_directory, (parameter.replace(' ', '_') + '.xlsx')), 'Data')
+        data = pd.read_excel(
+            join(self.data_directory, (parameter.replace(" ", "_") + ".xlsx")), "Data"
+        )
         data = data.fillna(0)
-        if 'r' in dims.letters:  # remove unwanted regions
-            data = data[data['region'].isin(dims['r'].items)]
+        if "r" in dims.letters:  # remove unwanted regions
+            data = data[data["region"].isin(dims["r"].items)]
 
-        if parameter == 'vehicle new registration':
+        if parameter == "vehicle new registration":
             return self.vehicle_new_registration(data, dims)
 
         data.columns = [x.lower() for x in data.columns]
-        data = data[[dim.name for dim in dims] + ['value']]  # select only relevant information
+        data = data[[dim.name for dim in dims] + ["value"]]  # select only relevant information
         data.sort_values([dim.name for dim in dims], inplace=True)  # sort to ensure correct order
         if len(dims.dim_list) == 1:
-            return Parameter(dims=dims, values=data['value'].values)
+            return Parameter(dims=dims, values=data["value"].values)
         elif len(dims.dim_list) == 2:
             multiindex = data.set_index([dim.name for dim in dims])
             data = multiindex.unstack().values[:, :]
             return Parameter(dims=dims, values=data)
 
     def vehicle_new_registration(self, data, dims):
-        data.sort_values('region', inplace=True)
+        data.sort_values("region", inplace=True)
         data = data[self.years]
         return Parameter(dims=dims, values=data.values.T)
+
 
 # %% [markdown]
 # ## 4. Put everything together
 # We make an instance of our `CustomDataReader`, read in the data and use it to create an instance of our `VehicleMFA` class. Then we can run the calculations, and check what our estimate of vehicle stocks looks like compared to the data for 2015 in the `vehicle_stock.xlsx` file.
 
 # %%
-data_reader = CustomDataReader(data_directory='example5_data')
+data_reader = CustomDataReader(data_directory="example5_data")
 dimensions = data_reader.read_dimensions(dimension_definitions)
 parameters = data_reader.read_parameters(parameter_definitions, dims=dimensions)
 
-stocks = make_empty_stocks(stock_definitions=stock_definitions, processes=processes, dims=dimensions)
+stocks = make_empty_stocks(
+    stock_definitions=stock_definitions, processes=processes, dims=dimensions
+)
 flows = make_empty_flows(processes=processes, dims=dimensions, flow_definitions=flow_definitions)
 
-vehicle_mfa = VehicleMFA(dims=dimensions, parameters=parameters, flows=flows, stocks=stocks, processes=processes)
+vehicle_mfa = VehicleMFA(
+    dims=dimensions,
+    parameters=parameters,
+    flows=flows,
+    stocks=stocks,
+    processes=processes,
+)
 stock_diff = vehicle_mfa.compute_stock()  # compute 1st stock estimate and difference to data
 
 # %%
@@ -224,27 +284,42 @@ class AnotherCustomDataReader(CustomDataReader):
         return list(range(2018, 2051))
 
     def vehicle_new_registration(self, data, dims):
-        data.sort_values('region', inplace=True)
-        data.set_index('region', inplace=True)
+        data.sort_values("region", inplace=True)
+        data.set_index("region", inplace=True)
         data_years = [k for k in data.keys() if isinstance(k, int)]
         data = data[data_years]
 
         repeated_values = np.tile(data[min(data_years)].values, (len(self.historical_years), 1))
-        historical_data = pd.DataFrame(index=data.index, columns=self.historical_years, data=repeated_values.T)
+        historical_data = pd.DataFrame(
+            index=data.index, columns=self.historical_years, data=repeated_values.T
+        )
         future_data = pd.DataFrame(index=data.index, columns=self.future_years, data=0)
         data = data.combine_first(historical_data).combine_first(future_data)
         return Parameter(dims=dims, values=data.values.T)
 
+
 # %%
-data_reader_2 = AnotherCustomDataReader(data_directory='example5_data')
+data_reader_2 = AnotherCustomDataReader(data_directory="example5_data")
 dimensions_2 = data_reader_2.read_dimensions(dimension_definitions)
 parameters_2 = data_reader_2.read_parameters(parameter_definitions, dims=dimensions_2)
 
-stocks_2 = make_empty_stocks(stock_definitions=stock_definitions, processes=processes, dims=dimensions_2)
-flows_2 = make_empty_flows(processes=processes, dims=dimensions_2, flow_definitions=flow_definitions)
+stocks_2 = make_empty_stocks(
+    stock_definitions=stock_definitions, processes=processes, dims=dimensions_2
+)
+flows_2 = make_empty_flows(
+    processes=processes, dims=dimensions_2, flow_definitions=flow_definitions
+)
 
-vehicle_mfa_2 = VehicleMFA(dims=dimensions_2, parameters=parameters_2, flows=flows_2, stocks=stocks_2, processes=processes)
-stock_diff_2 = vehicle_mfa_2.compute()  # compute 2nd stock estimate and difference to data, as well as the MFA flows
+vehicle_mfa_2 = VehicleMFA(
+    dims=dimensions_2,
+    parameters=parameters_2,
+    flows=flows_2,
+    stocks=stocks_2,
+    processes=processes,
+)
+stock_diff_2 = (
+    vehicle_mfa_2.compute()
+)  # compute 2nd stock estimate and difference to data, as well as the MFA flows
 
 # %%
 stock_diff_2[stock_diff_2 <= stock_diff]
@@ -258,29 +333,30 @@ stock_diff_2[stock_diff_2 <= stock_diff]
 # And when will this material become available for recycling?
 
 # %%
-stock_by_material_type = vehicle_mfa_2.stocks['in use'].stock * vehicle_mfa_2.parameters['vehicle material content'] * 1e-9
-global_stock_by_material_type = stock_by_material_type.sum_nda_over(sum_over_dims=('r'))
-global_stock_by_material_type_in_2017 = global_stock_by_material_type[{'t': 2017}]
+stock_by_material_type = (
+    vehicle_mfa_2.stocks["in use"].stock
+    * vehicle_mfa_2.parameters["vehicle material content"]
+    * 1e-9
+)
+global_stock_by_material_type = stock_by_material_type.sum_nda_over(sum_over_dims=("r"))
+global_stock_by_material_type_in_2017 = global_stock_by_material_type[{"t": 2017}]
 
 stock_df = global_stock_by_material_type_in_2017.to_df(index=False)
-fig = px.bar(stock_df, x='material', y='value')
+fig = px.bar(stock_df, x="material", y="value")
 fig.show()
 
 # %%
 np.nan_to_num(vehicle_mfa_2.flows["scrap => sysenv"].values, copy=False)
-scrap_outflow = vehicle_mfa_2.flows["scrap => sysenv"].sum_nda_over(sum_over_dims=('r', 'm'))
+scrap_outflow = vehicle_mfa_2.flows["scrap => sysenv"].sum_nda_over(sum_over_dims=("r", "m"))
 outflow_df = pd.DataFrame(
     data=scrap_outflow.values,
-    columns=scrap_outflow.dims['w'].items,
-    index=scrap_outflow.dims['t'].items,
+    columns=scrap_outflow.dims["w"].items,
+    index=scrap_outflow.dims["t"].items,
 )
 outflow_df = outflow_df[outflow_df.index > 2017]
-fig = px.line(outflow_df, title='Scrap outflow')
+fig = px.line(outflow_df, title="Scrap outflow")
 fig.show()
 fig.update_yaxes(type="log")
 fig.show()
 
 # %%
-
-
-

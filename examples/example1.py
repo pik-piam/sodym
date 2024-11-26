@@ -39,7 +39,13 @@ import numpy as np
 import plotly.express as px
 
 from sodym import (
-    Dimension, DimensionSet, Parameter, Process, FlowDefinition, Flow, MFASystem,
+    Dimension,
+    DimensionSet,
+    Parameter,
+    Process,
+    FlowDefinition,
+    Flow,
+    MFASystem,
 )
 from sodym.flow_helper import make_empty_flows
 
@@ -48,19 +54,29 @@ from sodym.flow_helper import make_empty_flows
 # Normally data would be loaded from a file / database, but since this is just a small example, the values are input directly into the code below.
 
 # %%
-time = Dimension(name='Time', letter='t', items=list(range(1980,2011)))
-elements = Dimension(name='Elements', letter='e', items=['single material', ])
+time = Dimension(name="Time", letter="t", items=list(range(1980, 2011)))
+elements = Dimension(
+    name="Elements",
+    letter="e",
+    items=[
+        "single material",
+    ],
+)
 dimensions = DimensionSet(dim_list=[time, elements])
 
 parameters = {
-    'D': Parameter(name='inflow', dims=dimensions, values=np.arange(0, 31).reshape(31, 1)),
-    'alpha': Parameter(name='recovery rate', dims=dimensions, values=np.arange(2, 33).reshape(31, 1)/34)
+    "D": Parameter(name="inflow", dims=dimensions, values=np.arange(0, 31).reshape(31, 1)),
+    "alpha": Parameter(
+        name="recovery rate",
+        dims=dimensions,
+        values=np.arange(2, 33).reshape(31, 1) / 34,
+    ),
 }
 
 processes = {
-    'sysenv': Process(name='sysenv', id=0),
-    'process 1': Process(name='process 1', id=1),
-    'process 2': Process(name='process 2', id=2)
+    "sysenv": Process(name="sysenv", id=0),
+    "process 1": Process(name="process 1", id=1),
+    "process 2": Process(name="process 2", id=2),
 }
 
 # %% [markdown]
@@ -70,10 +86,22 @@ processes = {
 
 # %%
 flow_definitions = [
-    FlowDefinition(from_process_name='sysenv', to_process_name='process 1', dim_letters=('t', 'e')),  # input
-    FlowDefinition(from_process_name='process 1', to_process_name='process 2', dim_letters=('t', 'e')),  # consumption
-    FlowDefinition(from_process_name='process 2', to_process_name='sysenv', dim_letters=('t', 'e')),  # output
-    FlowDefinition(from_process_name='process 2', to_process_name='process 1', dim_letters=('t', 'e')),  # recovered material
+    FlowDefinition(
+        from_process_name="sysenv", to_process_name="process 1", dim_letters=("t", "e")
+    ),  # input
+    FlowDefinition(
+        from_process_name="process 1",
+        to_process_name="process 2",
+        dim_letters=("t", "e"),
+    ),  # consumption
+    FlowDefinition(
+        from_process_name="process 2", to_process_name="sysenv", dim_letters=("t", "e")
+    ),  # output
+    FlowDefinition(
+        from_process_name="process 2",
+        to_process_name="process 1",
+        dim_letters=("t", "e"),
+    ),  # recovered material
 ]
 flows = make_empty_flows(processes=processes, flow_definitions=flow_definitions, dims=dimensions)
 
@@ -86,36 +114,42 @@ flows = make_empty_flows(processes=processes, flow_definitions=flow_definitions,
 
 # %%
 class SimpleMFA(MFASystem):
-
     def compute(self):
-        self.flows['sysenv => process 1'][...] = self.parameters['D']  # the elipsis slice [...] ensures the dimensionality of the flow is not changed
-        self.flows['process 1 => process 2'][...] = 1 / (1 - self.parameters['alpha']) * self.parameters['D']
-        self.flows['process 2 => sysenv'][...] = self.parameters['D']
-        self.flows['process 2 => process 1'][...] = self.parameters['alpha'] / (1 - self.parameters['alpha']) * self.parameters['D']
-
+        self.flows["sysenv => process 1"][...] = self.parameters[
+            "D"
+        ]  # the elipsis slice [...] ensures the dimensionality of the flow is not changed
+        self.flows["process 1 => process 2"][...] = (
+            1 / (1 - self.parameters["alpha"]) * self.parameters["D"]
+        )
+        self.flows["process 2 => sysenv"][...] = self.parameters["D"]
+        self.flows["process 2 => process 1"][...] = (
+            self.parameters["alpha"] / (1 - self.parameters["alpha"]) * self.parameters["D"]
+        )
 
 
 # %%
-mfa_example = SimpleMFA(dims=dimensions, processes=processes, parameters=parameters, flows=flows, stocks={})
+mfa_example = SimpleMFA(
+    dims=dimensions, processes=processes, parameters=parameters, flows=flows, stocks={}
+)
 mfa_example.compute()
 
 # %%
-flow_a = mfa_example.flows['sysenv => process 1']
+flow_a = mfa_example.flows["sysenv => process 1"]
 fig = px.line(
-    x=flow_a.dims['t'].items,
-    y=flow_a['single material'].values,
+    x=flow_a.dims["t"].items,
+    y=flow_a["single material"].values,
     title=flow_a.name,
-    labels={'x': 'Year', 'y': 'Mt/yr'},
+    labels={"x": "Year", "y": "Mt/yr"},
 )
 fig.show()
 
 # %%
-flow_b = mfa_example.flows['process 1 => process 2']
+flow_b = mfa_example.flows["process 1 => process 2"]
 fig = px.line(
-    x=flow_b.dims['t'].items,
-    y=flow_b['single material'].values,
+    x=flow_b.dims["t"].items,
+    y=flow_b["single material"].values,
     title=flow_b.name,
-    labels={'x': 'Year', 'y': 'Mt/yr'},
+    labels={"x": "Year", "y": "Mt/yr"},
 )
 fig.show()
 

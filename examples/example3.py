@@ -45,7 +45,15 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 
-from sodym import DimensionDefinition, ParameterDefinition, Dimension, DimensionSet, Parameter, Process, StockArray
+from sodym import (
+    DimensionDefinition,
+    ParameterDefinition,
+    Dimension,
+    DimensionSet,
+    Parameter,
+    Process,
+    StockArray,
+)
 from sodym.data_reader import DataReader
 from sodym.survival_functions import NormalSurvival
 from sodym.stocks import InflowDrivenDSM
@@ -59,58 +67,71 @@ from sodym.stocks import InflowDrivenDSM
 
 # %%
 dimension_definitions = [
-    DimensionDefinition(letter='t', name='Time', dtype=int),
-    DimensionDefinition(letter='r', name='Region', dtype=str),
+    DimensionDefinition(letter="t", name="Time", dtype=int),
+    DimensionDefinition(letter="r", name="Region", dtype=str),
 ]
 
 parameter_definitions = [
-    ParameterDefinition(name='inflow', dim_letters=('t', 'r', )),
-    ParameterDefinition(name='tau', dim_letters=('r', )),
-    ParameterDefinition(name='sigma', dim_letters=('r', )),
+    ParameterDefinition(
+        name="inflow",
+        dim_letters=(
+            "t",
+            "r",
+        ),
+    ),
+    ParameterDefinition(name="tau", dim_letters=("r",)),
+    ParameterDefinition(name="sigma", dim_letters=("r",)),
 ]
 
 
 # %%
 class LittleDataReader(DataReader):
-
     def __init__(self, country_lifetimes, steel_consumption_file):
         self.country_lifetimes = country_lifetimes
         self.steel_consumption = self.prepare_steel_consumption_data(steel_consumption_file)
 
     def prepare_steel_consumption_data(self, steel_consumption_file):
         steel_consumption = pd.read_excel(steel_consumption_file)
-        steel_consumption = steel_consumption[['CS', 'T', 'V']]
-        return steel_consumption.rename(columns={'CS': 'r', 'T': 't', 'V': 'inflow'})
+        steel_consumption = steel_consumption[["CS", "T", "V"]]
+        return steel_consumption.rename(columns={"CS": "r", "T": "t", "V": "inflow"})
 
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
-        if dimension_definition.letter == 't':
-            data = list(self.steel_consumption['t'].unique())
-        elif dimension_definition.letter == 'r':
+        if dimension_definition.letter == "t":
+            data = list(self.steel_consumption["t"].unique())
+        elif dimension_definition.letter == "r":
             data = list(self.country_lifetimes.keys())
-        return Dimension(name=dimension_definition.name, letter=dimension_definition.letter, items=data)
+        return Dimension(
+            name=dimension_definition.name,
+            letter=dimension_definition.letter,
+            items=data,
+        )
 
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        if parameter == 'tau':
+        if parameter == "tau":
             data = np.array(list(country_lifetimes.values()))
-        elif parameter == 'sigma':
+        elif parameter == "sigma":
             data = np.array([0.3 * lifetime for lifetime in country_lifetimes.values()])
-        elif parameter == 'inflow':
-            multiindex = self.steel_consumption.set_index(['t', 'r'])
+        elif parameter == "inflow":
+            multiindex = self.steel_consumption.set_index(["t", "r"])
             data = multiindex.unstack().values[:, :]
         return Parameter(dims=dims, values=data)
 
-country_lifetimes =  {
-    'Argentina': 45,
-    'Brazil': 25,
-    'Canada': 35,
-    'Denmark': 55,
-    'Ethiopia': 70,
-    'France': 45,
-    'Greece': 70,
-    'Hungary': 30,
-    'Indonesia': 30,
+
+country_lifetimes = {
+    "Argentina": 45,
+    "Brazil": 25,
+    "Canada": 35,
+    "Denmark": 55,
+    "Ethiopia": 70,
+    "France": 45,
+    "Greece": 70,
+    "Hungary": 30,
+    "Indonesia": 30,
 }
-data_reader = LittleDataReader(country_lifetimes=country_lifetimes, steel_consumption_file='example3_steel_consumption.xlsx')
+data_reader = LittleDataReader(
+    country_lifetimes=country_lifetimes,
+    steel_consumption_file="example3_steel_consumption.xlsx",
+)
 dimensions = data_reader.read_dimensions(dimension_definitions)
 parameters = data_reader.read_parameters(parameter_definitions, dimensions)
 
@@ -122,15 +143,15 @@ parameters = data_reader.read_parameters(parameter_definitions, dimensions)
 # %%
 normal_survival_model = NormalSurvival(
     dims=dimensions,
-    lifetime_mean=parameters['tau'],
-    lifetime_std=parameters['sigma'],
+    lifetime_mean=parameters["tau"],
+    lifetime_std=parameters["sigma"],
 )
 
-inflow_stock = StockArray(dims=dimensions, values=parameters['inflow'].values)
+inflow_stock = StockArray(dims=dimensions, values=parameters["inflow"].values)
 
 dynamic_stock = InflowDrivenDSM(
-    name='steel',
-    process=Process(name='in use', id=1),
+    name="steel",
+    process=Process(name="in use", id=1),
     survival_model=normal_survival_model,
     inflow=inflow_stock,
 )
@@ -142,9 +163,9 @@ dynamic_stock.compute()
 
 # %%
 stock_df = dynamic_stock.stock.to_df(index=False)
-stock_df = stock_df.pivot(index='Time', columns='Region')['value']
+stock_df = stock_df.pivot(index="Time", columns="Region")["value"]
 
-fig = px.line(stock_df, title='In-use stocks of steel')
+fig = px.line(stock_df, title="In-use stocks of steel")
 fig.show()
 
 # %% [markdown]
@@ -153,11 +174,11 @@ fig.show()
 # %%
 inflow = dynamic_stock.inflow
 outflow = dynamic_stock.outflow
-with np.errstate(divide='ignore'):
-    ratio_df = (outflow/inflow).to_df(index=False)
-ratio_df = ratio_df.pivot(index='Time', columns='Region')['value']
+with np.errstate(divide="ignore"):
+    ratio_df = (outflow / inflow).to_df(index=False)
+ratio_df = ratio_df.pivot(index="Time", columns="Region")["value"]
 
-fig = px.line(ratio_df, title='Ratio outflow:inflow')
+fig = px.line(ratio_df, title="Ratio outflow:inflow")
 fig.show()
 
 # %% [markdown]
