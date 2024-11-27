@@ -245,7 +245,7 @@ class NamedDimArray(PydanticBaseModel):
             if dim_to_columns not in self.dims.names:
                 raise ValueError(f"Dimension name {dim_to_columns} not found in nda.dims.names")
             df.reset_index(inplace=True)
-            index_names = [n for n in self.dims.names if n!=dim_to_columns]
+            index_names = [n for n in self.dims.names if n != dim_to_columns]
             df = df.pivot(index=index_names, columns=dim_to_columns, values="value")
         if not index:
             df.reset_index(inplace=True)
