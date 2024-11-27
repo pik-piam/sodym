@@ -163,8 +163,7 @@ dynamic_stock.compute()
 # First, we plot the steel stock in the different countries over time.
 
 # %%
-stock_df = dynamic_stock.stock.to_df(index=False)
-stock_df = stock_df.pivot(index="Time", columns="Region")["value"]
+stock_df = dynamic_stock.stock.to_df(dim_to_columns="Region")
 
 fig = px.line(stock_df, title="In-use stocks of steel")
 fig.show()
@@ -176,8 +175,7 @@ fig.show()
 inflow = dynamic_stock.inflow
 outflow = dynamic_stock.outflow
 with np.errstate(divide="ignore"):
-    ratio_df = (outflow / inflow).to_df(index=False)
-ratio_df = ratio_df.pivot(index="Time", columns="Region")["value"]
+    ratio_df = (outflow / inflow).to_df(dim_to_columns="Region")
 
 fig = px.line(ratio_df, title="Ratio outflow:inflow")
 fig.show()
