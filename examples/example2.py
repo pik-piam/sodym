@@ -54,7 +54,6 @@ from sodym import (
     Parameter,
     Process,
     FlowDefinition,
-    Flow,
     StockDefinition,
     MFASystem,
     NamedDimArray,

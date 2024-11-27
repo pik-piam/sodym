@@ -44,7 +44,6 @@ from sodym import (
     Parameter,
     Process,
     FlowDefinition,
-    Flow,
     MFASystem,
 )
 from sodym.flow_helper import make_empty_flows
@@ -57,7 +56,7 @@ from sodym.flow_helper import make_empty_flows
 time = Dimension(name="Time", letter="t", items=list(range(1980, 2011)))
 elements = Dimension(
     name="Elements",
-    letter="e",
+    letter='e',
     items=[
         "single material",
     ],
