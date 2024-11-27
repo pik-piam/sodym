@@ -16,7 +16,7 @@
 # # Example 1. System with two processes, two parameters, one material.
 # *ODYM example by Stefan Pauliuk, adapted for sodym*
 #
-# A simple MFA system with one material, a time horizon of 30 years [1980-2010], two processes, and a time-dependent parameter is analysed.
+# A simple MFA system with one material, a time horizon of 30 years (1980-2010), two processes, and a time-dependent parameter is analysed.
 #
 # <img src="pictures/MFAExample1.png" width="404" height="490" alt="Diagram of the MFA system">
 #
