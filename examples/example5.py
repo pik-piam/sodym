@@ -135,8 +135,8 @@ class VehicleMFA(MFASystem):
         self.stocks["in use"].inflow[...] = self.flows["sysenv => market"]
         survival_model = NormalSurvival(
             dims=self.stocks["in use"].inflow.dims,
-            lifetime_mean=self.parameters["vehicle lifetime"].values,
-            lifetime_std=self.parameters["vehicle lifetime"].values * 0.3,
+            lifetime_mean=self.parameters["vehicle lifetime"],
+            lifetime_std=self.parameters["vehicle lifetime"] * 0.3,
         )
         if not isinstance(self.stocks["in use"], InflowDrivenDSM):
             self.stocks["in use"] = self.stocks["in use"].to_stock_type(
@@ -349,11 +349,7 @@ fig.show()
 # %%
 np.nan_to_num(vehicle_mfa_2.flows["scrap => sysenv"].values, copy=False)
 scrap_outflow = vehicle_mfa_2.flows["scrap => sysenv"].sum_nda_over(sum_over_dims=("r", "m"))
-outflow_df = pd.DataFrame(
-    data=scrap_outflow.values,
-    columns=scrap_outflow.dims["w"].items,
-    index=scrap_outflow.dims["t"].items,
-)
+outflow_df = scrap_outflow.to_df(dim_to_columns="waste")
 outflow_df = outflow_df[outflow_df.index > 2017]
 fig = px.line(outflow_df, title="Scrap outflow")
 fig.show()

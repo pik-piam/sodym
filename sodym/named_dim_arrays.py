@@ -237,12 +237,18 @@ class NamedDimArray(PydanticBaseModel):
         self.values[slice_obj.ids] = item.sum_values_to(slice_obj.dim_letters)
         return
 
-    def to_df(self, index: bool = True):
+    def to_df(self, index: bool = True, dim_to_columns: str = None) -> pd.DataFrame:
         multiindex = pd.MultiIndex.from_product([d.items for d in self.dims], names=self.dims.names)
         df = pd.DataFrame({"value": self.values.flatten()})
         df = df.set_index(multiindex)
+        if dim_to_columns is not None:
+            if dim_to_columns not in self.dims.names:
+                raise ValueError(f"Dimension name {dim_to_columns} not found in nda.dims.names")
+            df.reset_index(inplace=True)
+            index_names = [n for n in self.dims.names if n != dim_to_columns]
+            df = df.pivot(index=index_names, columns=dim_to_columns, values="value")
         if not index:
-            df = df.reset_index()
+            df.reset_index(inplace=True)
         return df
 
     def split(self, dim_letter: str) -> dict:
