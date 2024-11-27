@@ -14,6 +14,7 @@
 
 # %% [markdown]
 # # Example 5. Estimating the material content of the global vehicle fleet
+# *ODYM example by Stefan Pauliuk, adapted for sodym*
 #
 # This example shows a fully-fledged MFA system, designed to estimate the material composition of the global passenger vehicle fleet in 2017, covering 130 countries, 25 age-cohorts, and 25 materials.
 #

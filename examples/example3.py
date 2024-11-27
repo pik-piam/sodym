@@ -14,6 +14,7 @@
 
 # %% [markdown]
 # # Example 3. Dynamic Stock modelling
+# *ODYM example by Stefan Pauliuk, adapted for sodym*
 #
 # sodym defines the class DynamicStockModel for handling the inflow-driven and stock driven model of in-use stocks, see methods section 3 of the [uni-freiburg industrial ecology course](http://www.teaching.industrialecology.uni-freiburg.de/). In this notebook, we show how the dynamic stock model is used in the sodym framework. Other methods of the dynamic_stock_modelling class can be used in a similar way.
 #

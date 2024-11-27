@@ -14,6 +14,7 @@
 
 # %% [markdown]
 # # Example 2. Alloying elements in recycling.
+# *ODYM example by Stefan Pauliuk, adapted for sodym*
 #
 # A recycling system with two end-of-life (EoL) products, two scrap types, one secondary material, and several types of losses are studied. Three chemical elements are considered: iron, copper, and manganese. A time horizon of 30 years [1980-2010], five processes, and time-dependent parameters are analysed. The processes have element-specific yield factors, meaning that the loss rates depend on the chemical element considered. These values are given below.
 #
