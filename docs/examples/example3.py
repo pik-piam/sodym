@@ -23,8 +23,16 @@
 # * What is the ration between steel in EoL (end-of-life) products to final steel consumption in selected countries?
 # To answer that question the system definition is chosen as in the figure below.
 #
-# <img src="pictures/SimpleProcess.png" width="354" height="290" alt="Simple MFA system">
-#
+
+#%%
+import os
+if os.getcwd()[-5:] == 'sodym':
+    os.chdir("docs/examples")
+#%%
+from IPython.display import Image, display
+display(Image("pictures/SimpleProcess.png"))
+
+#%% [markdown]
 # Stocks S and outflow O are calculated from apparent final consumption i(t), which is obtained from statistics, cf. DOI 10.1016/j.resconrec.2012.11.008
 # The model equations are as follows:
 #

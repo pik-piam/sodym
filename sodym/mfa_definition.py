@@ -15,9 +15,9 @@ class DimensionDefinition(PydanticBaseModel):
 
     **Examples**
 
-    >>> from sodym import DimensionDefinition
-    >>> time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
-    >>> region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
+        >>> from sodym import DimensionDefinition
+        >>> time_definition = DimensionDefinition(name='Time', letter='t', dtype=int)
+        >>> region_definition = DimensionDefinition(name='Region', letter='r', dtype=str)
     """
 
     model_config = ConfigDict(protected_namespaces=())
@@ -47,9 +47,9 @@ class FlowDefinition(DefinitionWithDimLetters):
 
     **Examples**
 
-    >>> from sodym import FlowDefinition
-    >>> flow_one = FlowDefinition(from_process_name='fabrication', to_process_name='use', dim_letters=('r', 't'))
-    >>> flow_two = FlowDefinition(from_process_name='use', to_process_name='end_of_life', dim_letters=('r', 't'))
+        >>> from sodym import FlowDefinition
+        >>> flow_one = FlowDefinition(from_process_name='fabrication', to_process_name='use', dim_letters=('r', 't'))
+        >>> flow_two = FlowDefinition(from_process_name='use', to_process_name='end_of_life', dim_letters=('r', 't'))
 
     These are then used in the :py:class:MFADefinition, for creating a custom MFA System.
     """

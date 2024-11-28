@@ -24,8 +24,16 @@
 # * How much manganese is lost in the remelting process assuming that all available scrap is remelted?
 # * What is more effective in reducing the copper concentraction of secondary steel: A reduction of the shredding yield factor for copper from EoL machines into steel scrap of 25% or an increase in the EoL buildings flow by 25%? (All other variables and parameters remaining equal)
 #
-# <img src="pictures/SteelAlloyElementsWasteMgt.png" width="554" height="490" alt="Simple MFA system">
-#
+
+#%%
+import os
+if os.getcwd()[-5:] == 'sodym':
+    os.chdir("docs/examples")
+#%%
+from IPython.display import Image, display
+display(Image("pictures/SteelAlloyElementsWasteMgt.png"))
+
+#%% [markdown]
 # The model equations are as follows:
 # * $F_{1\_3}(t,e) = \Gamma_1(e) \cdot F_{0\_1}(t,e) $ (shredder yield factor)
 # * $F_{1\_0}(t,e) = (1 - \Gamma_1(e)) \cdot F_{0\_1}(t,e) $ (mass balance)

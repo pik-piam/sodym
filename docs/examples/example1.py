@@ -18,7 +18,14 @@
 #
 # A simple MFA system with one material, a time horizon of 30 years (1980-2010), two processes, and a time-dependent parameter is analysed.
 #
-# <img src="pictures/MFAExample1.png" width="404" height="490" alt="Diagram of the MFA system">
+
+# %%
+import os
+from IPython.display import Image, display
+p = "docs/examples/pictures" if os.getcwd()[-5:] == 'sodym' else "pictures"
+display(Image(f"{p}/MFAExample1.png"))
+
+#%% [markdown]
 #
 # The model equations are as follows:
 # * $a(t) = D(t)$ (exogenous input flow)

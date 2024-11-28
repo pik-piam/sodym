@@ -20,22 +20,21 @@ class MFASystem(PydanticBaseModel):
     For the concrete definition of the system, a subclass of MFASystem must be implemented.
 
     **Example**
-
     Define your MFA System:
 
-    >>> from sodym import MFASystem
-    >>> class CustomMFA(MFASystem):
-    >>>     def compute(self):
-    >>>         # do some computations on the CustomMFA attributes: stocks and flows
+        >>> from sodym import MFASystem
+        >>> class CustomMFA(MFASystem):
+        >>>     def compute(self):
+        >>>         # do some computations on the CustomMFA attributes: stocks and flows
 
     Initialize and run your MFA System model:
 
-    >>> from sodym import ExampleDataReader
-    >>> data_reader = ExampleDataReader(dimension_datasets={...}, ...)
-    >>> dimension_definitions = [DimensionDefinition(name='time', letter='t', dtype=int), ...]
-    >>> dims = data_reader.read_dimensions(dimension_definitions)
-    >>> mfa = MFASystem(dim=dims, ...)
-    >>> mfa.compute()
+        >>> from sodym import ExampleDataReader
+        >>> data_reader = ExampleDataReader(dimension_datasets={...}, ...)
+        >>> dimension_definitions = [DimensionDefinition(name='time', letter='t', dtype=int), ...]
+        >>> dims = data_reader.read_dimensions(dimension_definitions)
+        >>> mfa = MFASystem(dim=dims, ...)
+        >>> mfa.compute()
 
     MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.

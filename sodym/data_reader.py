@@ -15,11 +15,14 @@ class DataReader(ABC):
     """
 
     def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
+        """Method to read data for multiple dimensions, by looping over `read_dimension`."""
         dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
         return DimensionSet(dim_list=dimensions)
 
     @abstractmethod
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+        """Required method to read data for a single dimension,
+        corresponding to the dimension definition."""
         pass
 
     def read_scalar_data(self, parameters: List[str]) -> dict:
@@ -28,11 +31,13 @@ class DataReader(ABC):
 
     @abstractmethod
     def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
+        """Required method to read data for a particular parameter."""
         pass
 
     def read_parameters(
         self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
     ) -> Dict[str, Parameter]:
+        """Method to read data for a list of parameters, by looping over `read_parameter_values`."""
         parameters = {}
         for parameter in parameter_definitions:
             dim_subset = dims.get_subset(parameter.dim_letters)
