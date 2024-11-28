@@ -150,8 +150,10 @@ class DimensionSet(PydanticBaseModel):
         added_dims = [dim for dim in other.dim_list if dim.letter not in self.letters]
         return self.expand_by(added_dims)
 
-    def difference_with(self, other: 'DimensionSet') -> 'DimensionSet':
-        difference_letters = [dim.letter for dim in self.dim_list if dim.letter not in other.letters]
+    def difference_with(self, other: "DimensionSet") -> "DimensionSet":
+        difference_letters = [
+            dim.letter for dim in self.dim_list if dim.letter not in other.letters
+        ]
         return self.get_subset(difference_letters)
 
     @property
