@@ -10,7 +10,6 @@ from .dimensions import DimensionSet, Dimension
 
 
 class DimensionReader(ABC):
-
     def read_all(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
         dimensions = [self.read_single(definition) for definition in dimension_definitions]
         return DimensionSet(dim_list=dimensions)
@@ -21,11 +20,10 @@ class DimensionReader(ABC):
 
 
 class CSVDimensionReader(DimensionReader):
-
     def __init__(
-            self,
-            dimension_files: dict = None,
-        ):
+        self,
+        dimension_files: dict = None,
+    ):
         self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
 
     def read_single(self, definition: DimensionDefinition):
@@ -39,12 +37,11 @@ class CSVDimensionReader(DimensionReader):
 
 
 class ExcelDimensionReader(DimensionReader):
-
     def __init__(
-            self,
-            dimension_files: dict = None,
-            dimension_sheets: dict = None,
-        ):
+        self,
+        dimension_files: dict = None,
+        dimension_sheets: dict = None,
+    ):
         self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
         self.dimension_sheets = dimension_sheets
 
@@ -59,7 +56,9 @@ class ExcelDimensionReader(DimensionReader):
             sheet_name = self.dimension_sheets[definition.name]
         data = pd.read_excel(path, sheet_name=sheet_name, header=None).to_numpy()
         if not np.min(data.shape) == 1:
-            raise ValueError(f"Dimension data for {definition.name} must have only one row or column.")
+            raise ValueError(
+                f"Dimension data for {definition.name} must have only one row or column."
+            )
         data = data.flatten().tolist()
         # delete header for items if present
         if data[0] == definition.name:
@@ -68,7 +67,6 @@ class ExcelDimensionReader(DimensionReader):
 
 
 class ParameterReader(ABC):
-
     @abstractmethod
     def read_single(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         pass
@@ -87,8 +85,10 @@ class ParameterReader(ABC):
 
 
 class CSVParameterReader(ParameterReader):
-
-    def __init__(self, parameter_files: dict = None,):
+    def __init__(
+        self,
+        parameter_files: dict = None,
+    ):
         self.parameter_filenames = parameter_files  # {parameter_name: file_path, ...}
 
     def read_single(self, parameter_name: str, dims):
@@ -100,12 +100,11 @@ class CSVParameterReader(ParameterReader):
 
 
 class ExcelParameterReader(ParameterReader):
-
     def __init__(
-            self,
-            parameter_files: dict = None,
-            parameter_sheets: dict = None,
-        ):
+        self,
+        parameter_files: dict = None,
+        parameter_sheets: dict = None,
+    ):
         self.parameter_files = parameter_files  # {parameter_name: file_path, ...}
         self.parameter_sheets = parameter_sheets  # {parameter_name: sheet_name, ...}
 
@@ -122,20 +121,17 @@ class ExcelParameterReader(ParameterReader):
 
 
 class ScalarDataReader(ABC):
-
     def read(self, parameters: List[str]) -> dict:
         """Optional addition method if additional scalar parameters are required."""
         raise NotImplementedError("No scalar data reader specified.")
 
 
 class EmptyScalarDataReader(ScalarDataReader):
-
     def read(self, parameters: List[str]):
         return None
 
 
 class YamlScalarDataReader(ScalarDataReader):
-
     def __init__(self, scalar_data_yaml_file: str = None):
         self.scalar_data_yaml_file = scalar_data_yaml_file
 
@@ -145,9 +141,10 @@ class YamlScalarDataReader(ScalarDataReader):
         with open(self.scalar_data_yaml_file, "r") as stream:
             data = yaml.safe_load(stream)
         if not set(parameters) == set(data.keys()):
-            raise ValueError(f"Parameter names in yaml file do not match requested parameters. Unexpected parameters: {set(data.keys()) - set(parameters)}; Missing parameters: {set(parameters) - set(data.keys())}.")
+            raise ValueError(
+                f"Parameter names in yaml file do not match requested parameters. Unexpected parameters: {set(data.keys()) - set(parameters)}; Missing parameters: {set(parameters) - set(data.keys())}."
+            )
         return data
-
 
 
 class DataReader:
@@ -155,9 +152,12 @@ class DataReader:
     use in the MFASystem model.
     """
 
-    def __init__(self, dimension_reader: DimensionReader, parameter_reader: ParameterReader, scalar_data_reader: ScalarDataReader = EmptyScalarDataReader()):
+    def __init__(
+        self,
+        dimension_reader: DimensionReader,
+        parameter_reader: ParameterReader,
+        scalar_data_reader: ScalarDataReader = EmptyScalarDataReader(),
+    ):
         self.dimension_reader = dimension_reader
         self.parameter_reader = parameter_reader
         self.scalar_data_reader = scalar_data_reader
-
-

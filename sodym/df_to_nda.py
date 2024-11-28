@@ -16,17 +16,20 @@ class NDADataFormat(PydanticBaseModel):
 
 
 class DataFrameToNDAConverter:
-
-    def __init__(self, df: pd.DataFrame, nda: 'NamedDimArray'):
+    def __init__(self, df: pd.DataFrame, nda: "NamedDimArray"):
         self.df = df.copy()
         self.nda = nda
         self.nda_values = self.get_nda_values()
 
     def get_nda_values(self) -> np.ndarray:
 
-        logging.debug(f"Start setting values for NamedDimArray {self.nda.name} with dimensions {self.nda.dims.names} from dataframe.")
+        logging.debug(
+            f"Start setting values for NamedDimArray {self.nda.name} with dimensions {self.nda.dims.names} from dataframe."
+        )
 
-        logging.debug("Dropping index. If index is needed, please apply df.reset_index() before passing df to nda.")
+        logging.debug(
+            "Dropping index. If index is needed, please apply df.reset_index() before passing df to nda."
+        )
         self.df.reset_index(inplace=True, drop=True)
 
         self._determine_format()
@@ -55,8 +58,10 @@ class DataFrameToNDAConverter:
                 continue
             found = self._check_if_dim_column_by_items(cn)
             if not found:
-                logging.debug(f"Could not find dimension with same items as column {cn}. "
-                              "Assuming this is the first value column; Won't look further.")
+                logging.debug(
+                    f"Could not find dimension with same items as column {cn}. "
+                    "Assuming this is the first value column; Won't look further."
+                )
                 return
 
     def _check_if_dim_column_by_items(self, column_name: str) -> bool:
@@ -86,13 +91,17 @@ class DataFrameToNDAConverter:
         return False
 
     def _check_if_valid_long_format(self, value_cols: list[str]):
-        logging.debug("Could not find dimension with same item set as value column names. Assuming long format, i.e. one value column.")
+        logging.debug(
+            "Could not find dimension with same item set as value column names. Assuming long format, i.e. one value column."
+        )
         if len(value_cols) == 1:
             self.format = NDADataFormat(type="long", value_column=value_cols[0])
             logging.debug(f"Value column name is {value_cols[0]}.")
         else:
-            raise ValueError("More than one value columns. Could not find a dimension the items of which match the set of value column names. "
-                                f"Value columns: {value_cols}. Please check input data for format, typos, data types and missing items.")
+            raise ValueError(
+                "More than one value columns. Could not find a dimension the items of which match the set of value column names. "
+                f"Value columns: {value_cols}. Please check input data for format, typos, data types and missing items."
+            )
 
     def _df_to_long_format(self):
         if self.format.type != "wide":
@@ -103,7 +112,8 @@ class DataFrameToNDAConverter:
             id_vars=[c for c in self.df.columns if c not in value_cols],
             value_vars=value_cols,
             var_name=self.format.columns_dim,
-            value_name=self.format.value_column)
+            value_name=self.format.value_column,
+        )
         self.format = NDADataFormat(type="long", value_column=self.format.value_column)
         self.dim_columns.append(self.format.columns_dim)
 
@@ -114,7 +124,9 @@ class DataFrameToNDAConverter:
                 self.df[c] = self.nda.dims[c].items[0]
                 self.dim_columns.append(c)
             else:
-                raise ValueError(f"Dimension {c} from array has more than one item, but is not found in df. Please specify column in dataframe.")
+                raise ValueError(
+                    f"Dimension {c} from array has more than one item, but is not found in df. Please specify column in dataframe."
+                )
 
     def _check_data_complete(self):
         if self.df.index.has_duplicates:
@@ -122,9 +134,13 @@ class DataFrameToNDAConverter:
         for dim in self.nda.dims:
             df_dim_items = self.df.index.get_level_values(dim.name).unique()
             if not self.same_items(dim.items, df_dim_items):
-                raise Exception(f"Missing items in index for dimension {dim.name}! NamedDimArray items: {set(dim.items)}, df items: {set(df_dim_items)}")
+                raise Exception(
+                    f"Missing items in index for dimension {dim.name}! NamedDimArray items: {set(dim.items)}, df items: {set(df_dim_items)}"
+                )
         if np.prod(self.nda.shape) != self.df.index.size:
-            raise Exception(f"Dataframe is missing items! NamedDimArray size: {np.prod(self.shape)}, df size: {self.df.index.size}")
+            raise Exception(
+                f"Dataframe is missing items! NamedDimArray size: {np.prod(self.shape)}, df size: {self.df.index.size}"
+            )
 
     @staticmethod
     def same_items(arr1: Iterable, arr2: Iterable) -> bool:
