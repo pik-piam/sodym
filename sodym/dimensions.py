@@ -115,7 +115,7 @@ class DimensionSet(PydanticBaseModel):
             raise ValueError('DimensionSet already contains one or more of the dimensions to be added.')
         return DimensionSet(dim_list=self.dim_list + added_dims)
 
-    def drop(self, key: str, inplace: bool=False):
+    def drop(self, key: str, inplace: bool = False):
         dim_to_drop = self._dict[key]
         if inplace:
             self.dim_list.remove(dim_to_drop)
@@ -125,7 +125,7 @@ class DimensionSet(PydanticBaseModel):
             dimensions.remove(dim_to_drop)
             return DimensionSet(dim_list=dimensions)
 
-    def replace(self, key: str, new_dim: Dimension, inplace: bool=False):
+    def replace(self, key: str, new_dim: Dimension, inplace: bool = False):
         if new_dim.letter in self.letters:
             raise ValueError("New dimension can't have same letter as any of those already in DimensionSet, "
                              "as that would create ambiguity")
@@ -144,6 +144,10 @@ class DimensionSet(PydanticBaseModel):
     def union_with(self, other: 'DimensionSet') -> 'DimensionSet':
         added_dims = [dim for dim in other.dim_list if dim.letter not in self.letters]
         return self.expand_by(added_dims)
+
+    def difference_with(self, other: 'DimensionSet') -> 'DimensionSet':
+        difference_letters = [dim.letter for dim in self.dim_list if dim.letter not in other.letters]
+        return self.get_subset(difference_letters)
 
     @property
     def names(self):
