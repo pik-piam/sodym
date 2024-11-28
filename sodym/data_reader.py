@@ -9,98 +9,155 @@ from .mfa_definition import DimensionDefinition, ParameterDefinition
 from .dimensions import DimensionSet, Dimension
 
 
-class DataReader(ABC):
-    """Template for creating a data reader, showing required methods and data formats needed for
-    use in the MFASystem model.
-    """
+class DimensionReader(ABC):
 
-    def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
-        dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
+    def read_all(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
+        dimensions = [self.read_single(definition) for definition in dimension_definitions]
         return DimensionSet(dim_list=dimensions)
 
     @abstractmethod
-    def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+    def read_single(self, dimension_definition: DimensionDefinition) -> Dimension:
         pass
 
-    def read_scalar_data(self, parameters: List[str]) -> dict:
-        """Optional addition method if additional scalar parameters are required."""
-        pass
 
-    @abstractmethod
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        pass
+class CSVDimensionReader(DimensionReader):
 
-    def read_parameters(
-        self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
-    ) -> Dict[str, Parameter]:
-        parameters = {}
-        for parameter in parameter_definitions:
-            dim_subset = dims.get_subset(parameter.dim_letters)
-            parameters[parameter.name] = self.read_parameter_values(
-                parameter=parameter.name,
-                dims=dim_subset,
-            )
-        return parameters
+    def __init__(
+            self,
+            dimension_files: dict = None,
+        ):
+        self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
 
-
-class ExampleDataReader(DataReader):
-    """Example data reader, that reads .csv files for parameters and dimensions, and a yaml file
-    for scalar parameter data. File locations need to be specified on initialization.
-
-    **Example**
-
-        >>> from sodym import ExampleDataReader, DimensionDefinition
-        >>> time_definition = DimensionDefinition(name='time', letter='t', dtype=int)
-        >>> dimension_datasets = {
-        >>>     'time': 'path/to/file_with_list_of_times.csv',
-        >>>     'place': 'path/to/file_with_list_of_places.csv',
-        >>>     ...
-        >>> }
-        >>> data_reader = ExampleDataReader(dimension_datasets=dimension_datasets, ...)
-        >>> time_dimension = data_reader.read_dimension(definition=time_definition)
-
-    """
-
-    def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
-        self.scalar_data_yaml = scalar_data_yaml  # file_path
-        self.parameter_datasets = parameter_datasets  # {parameter_name: file_path, ...}
-        self.dimension_datasets = dimension_datasets  # {dimension_name: file_path, ...}
-
-    def read_scalar_data(self, parameters: List[str]):
-        with open(self.scalar_data_yaml, "r") as stream:
-            data = yaml.safe_load(stream)
-        return {name: data[name] for name in data if name in parameters}
-
-    def read_parameter_values(self, parameter: str, dims):
-        datasets_path = self.parameter_datasets[parameter]
-        data = pd.read_csv(datasets_path)
-        values = self.get_np_from_df(data, dims.names)
-        return Parameter(dims=dims, values=values)
-
-    def read_dimension(self, definition: DimensionDefinition):
-        path = self.dimension_datasets[definition.name]
+    def read_single(self, definition: DimensionDefinition):
+        if self.dimension_files is None:
+            raise ValueError("No dimension files specified.")
+        path = self.dimension_files[definition.name]
         data = np.loadtxt(path, dtype=definition.dtype, delimiter=";").tolist()
         # catch size one lists, which are transformed to scalar by np.ndarray.tolist()
         data = data if isinstance(data, list) else [data]
         return Dimension(name=definition.name, letter=definition.letter, items=data)
 
-    @staticmethod
-    def get_np_from_df(df_in: pd.DataFrame, dims: tuple):
-        df = df_in.copy()
-        dim_columns = [d for d in dims if d in df.columns]
-        value_cols = np.setdiff1d(df.columns, dim_columns)
-        df.set_index(dim_columns, inplace=True)
-        df = df.sort_values(by=dim_columns)
 
-        # check for sparsity
-        if df.index.has_duplicates:
-            raise Exception("Double entry in df!")
-        shape_out = df.index.shape if len(dim_columns) == 1 else df.index.levshape
-        if np.prod(shape_out) != df.index.size:
-            raise Exception("Dataframe is missing values!")
+class ExcelDimensionReader(DimensionReader):
 
-        if np.any(value_cols != "value"):
-            out = {vc: df[vc].values.reshape(shape_out) for vc in value_cols}
+    def __init__(
+            self,
+            dimension_files: dict = None,
+            dimension_sheets: dict = None,
+        ):
+        self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
+        self.dimension_sheets = dimension_sheets
+
+    def read_single(self, definition: DimensionDefinition):
+        if self.dimension_files is None:
+            raise ValueError("No dimension files specified.")
+        path = self.dimension_files[definition.name]
+        # load data from excel
+        if self.dimension_sheets is None:
+            sheet_name = None
         else:
-            out = df["value"].values.reshape(shape_out)
-        return out
+            sheet_name = self.dimension_sheets[definition.name]
+        data = pd.read_excel(path, sheet_name=sheet_name, header=None).to_numpy()
+        if not np.min(data.shape) == 1:
+            raise ValueError(f"Dimension data for {definition.name} must have only one row or column.")
+        data = data.flatten().tolist()
+        # delete header for items if present
+        if data[0] == definition.name:
+            data = data[1:]
+        return Dimension(name=definition.name, letter=definition.letter, items=data)
+
+
+class ParameterReader(ABC):
+
+    @abstractmethod
+    def read_single(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        pass
+
+    def read_all(
+        self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
+    ) -> Dict[str, Parameter]:
+        parameters = {}
+        for parameter in parameter_definitions:
+            dim_subset = dims.get_subset(parameter.dim_letters)
+            parameters[parameter.name] = self.read_single(
+                parameter_name=parameter.name,
+                dims=dim_subset,
+            )
+        return parameters
+
+
+class CSVParameterReader(ParameterReader):
+
+    def __init__(self, parameter_files: dict = None,):
+        self.parameter_filenames = parameter_files  # {parameter_name: file_path, ...}
+
+    def read_single(self, parameter_name: str, dims):
+        if self.parameter_filenames is None:
+            raise ValueError("No parameter files specified.")
+        datasets_path = self.parameter_filenames[parameter_name]
+        data = pd.read_csv(datasets_path)
+        return Parameter.from_df(dims=dims, name=parameter_name, df=data)
+
+
+class ExcelParameterReader(ParameterReader):
+
+    def __init__(
+            self,
+            parameter_files: dict = None,
+            parameter_sheets: dict = None,
+        ):
+        self.parameter_files = parameter_files  # {parameter_name: file_path, ...}
+        self.parameter_sheets = parameter_sheets  # {parameter_name: sheet_name, ...}
+
+    def read_single(self, parameter_name: str, dims):
+        if self.parameter_files is None:
+            raise ValueError("No parameter files specified.")
+        datasets_path = self.parameter_files[parameter_name]
+        if self.parameter_sheets is None:
+            sheet_name = None
+        else:
+            sheet_name = self.parameter_sheets[parameter_name]
+        data = pd.read_excel(datasets_path, sheet_name=sheet_name)
+        return Parameter.from_df(dims=dims, name=parameter_name, df=data)
+
+
+class ScalarDataReader(ABC):
+
+    def read(self, parameters: List[str]) -> dict:
+        """Optional addition method if additional scalar parameters are required."""
+        raise NotImplementedError("No scalar data reader specified.")
+
+
+class EmptyScalarDataReader(ScalarDataReader):
+
+    def read(self, parameters: List[str]):
+        return None
+
+
+class YamlScalarDataReader(ScalarDataReader):
+
+    def __init__(self, scalar_data_yaml_file: str = None):
+        self.scalar_data_yaml_file = scalar_data_yaml_file
+
+    def read(self, parameters: List[str]):
+        if self.scalar_data_yaml_file is None:
+            raise ValueError("No scalar data file specified.")
+        with open(self.scalar_data_yaml_file, "r") as stream:
+            data = yaml.safe_load(stream)
+        if not set(parameters) == set(data.keys()):
+            raise ValueError(f"Parameter names in yaml file do not match requested parameters. Unexpected parameters: {set(data.keys()) - set(parameters)}; Missing parameters: {set(parameters) - set(data.keys())}.")
+        return data
+
+
+
+class DataReader:
+    """Template for creating a data reader, showing required methods and data formats needed for
+    use in the MFASystem model.
+    """
+
+    def __init__(self, dimension_reader: DimensionReader, parameter_reader: ParameterReader, scalar_data_reader: ScalarDataReader = EmptyScalarDataReader()):
+        self.dimension_reader = dimension_reader
+        self.parameter_reader = parameter_reader
+        self.scalar_data_reader = scalar_data_reader
+
+

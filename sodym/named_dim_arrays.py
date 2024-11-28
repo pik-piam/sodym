@@ -7,6 +7,7 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
 
 from .dimensions import DimensionSet, Dimension
+from .df_to_nda import DataFrameToNDAConverter
 
 
 def is_iterable(arg):
@@ -79,6 +80,12 @@ class NamedDimArray(PydanticBaseModel):
         """
         dims = dims_superset.get_subset(dim_letters)
         return cls(dims=dims, **kwargs)
+
+    @classmethod
+    def from_df(cls, dims: DimensionSet, df: pd.DataFrame, **kwargs) -> "NamedDimArray":
+        nda = cls(dims=dims, **kwargs)
+        nda.set_values_from_df(df)
+        return nda
 
     def sub_array_handler(self, definition):
         return SubArrayHandler(self, definition)
@@ -250,6 +257,9 @@ class NamedDimArray(PydanticBaseModel):
         if not index:
             df.reset_index(inplace=True)
         return df
+
+    def set_values_from_df(self, df_in: pd.DataFrame):
+        self.set_values(DataFrameToNDAConverter(df_in, self).nda_values)
 
     def split(self, dim_letter: str) -> dict:
         """Reverse the named_dim_array_stack, returns a dictionary of NamedDimArray objects

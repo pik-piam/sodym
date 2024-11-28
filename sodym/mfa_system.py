@@ -54,9 +54,9 @@ class MFASystem(PydanticBaseModel):
     def from_data_reader(cls, definition: MFADefinition, data_reader: DataReader):
         """Define and set up the MFA system and load all required data.
         Initialises stocks and flows with all zero values."""
-        dims = data_reader.read_dimensions(definition.dimensions)
-        parameters = data_reader.read_parameters(definition.parameters, dims=dims)
-        scalar_parameters = data_reader.read_scalar_data(definition.scalar_parameters)
+        dims = data_reader.dimension_reader.read_all(definition.dimensions)
+        parameters = data_reader.parameter_reader.read_all(definition.parameters, dims=dims)
+        scalar_parameters = data_reader.scalar_data_reader.read(definition.scalar_parameters)
         processes = {
             name: Process(name=name, id=id) for id, name in enumerate(definition.processes)
         }
