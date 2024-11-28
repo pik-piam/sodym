@@ -1,7 +1,11 @@
 import logging
 from typing import Optional
 from .survival_functions import (
-    FixedSurvival, FoldedNormalSurvival, NormalSurvival, LogNormalSurvival, WeibullSurvival,
+    FixedSurvival,
+    FoldedNormalSurvival,
+    NormalSurvival,
+    LogNormalSurvival,
+    WeibullSurvival,
 )
 from .named_dim_arrays import StockArray, Parameter, Process
 from .named_dim_array_helper import named_dim_array_stack
@@ -13,10 +17,15 @@ from .stocks import DynamicStockModel, InflowDrivenDSM, StockDrivenDSM, FlowDriv
 def stock_stack(stocks: list[Stock], dimension: Dimension):
     stacked_stock = named_dim_array_stack([stock.stock for stock in stocks], dimension=dimension)
     stacked_inflow = named_dim_array_stack([stock.inflow for stock in stocks], dimension=dimension)
-    stacked_outflow = named_dim_array_stack([stock.outflow for stock in stocks], dimension=dimension)
+    stacked_outflow = named_dim_array_stack(
+        [stock.outflow for stock in stocks], dimension=dimension
+    )
     return FlowDrivenStock(
-        stock=stacked_stock, inflow=stacked_inflow, outflow=stacked_outflow,
-        name=stocks[0].name, process=stocks[0].process,
+        stock=stacked_stock,
+        inflow=stacked_inflow,
+        outflow=stacked_outflow,
+        name=stocks[0].name,
+        process=stocks[0].process,
     )
 
 
@@ -33,10 +42,9 @@ def make_empty_stock(stock_definition: StockDefinition, dims: DimensionSet, proc
 
 
 def make_empty_stocks(
-        stock_definitions: list[StockDefinition], processes: dict[str, Process], dims: DimensionSet
-        ):
-    """Initialise empty FlowDrivenStock objects for each of the stocks listed in stock definitions.
-    """
+    stock_definitions: list[StockDefinition], processes: dict[str, Process], dims: DimensionSet
+):
+    """Initialise empty FlowDrivenStock objects for each of the stocks listed in stock definitions."""
     empty_stocks = {}
     for stock_definition in stock_definitions:
         dim_subset = dims.get_subset(stock_definition.dim_letters)
@@ -50,8 +58,9 @@ def make_empty_stocks(
 
 
 def create_dynamic_stock(
-    name: str, process: Process,
-    time_letter: str='t',
+    name: str,
+    process: Process,
+    time_letter: str = "t",
     stock: Optional[StockArray] = None,
     inflow: Optional[StockArray] = None,
     process_name: Optional[str] = None,
@@ -62,25 +71,31 @@ def create_dynamic_stock(
     """Initialise either a StockDrivenDSM or an InflowDrivenDSM,
     depending on whether the user passes stock or inflow.
     The survival function of the dynamic stock model depends on the lifetime distribution function
-     (ldf_type), the lifetime mean and the lifetime standard deviation.
+    (ldf_type), the lifetime mean and the lifetime standard deviation.
     """
     if stock is None and inflow is None:
-        raise ValueError('Either stock or inflow must be passed to create a dynamic stock object.')
+        raise ValueError("Either stock or inflow must be passed to create a dynamic stock object.")
     dims = stock.dims if stock is not None else inflow.dims
     survival_model = get_survival_model(ldf_type)(
         dims=dims, lifetime_mean=lifetime_mean, lifetime_std=lifetime_std, time_letter=time_letter
     )
     if stock is not None:
-        logging.info('Creating StockDrivenDSM object')
+        logging.info("Creating StockDrivenDSM object")
         return StockDrivenDSM(
-            name=name, process=process, process_name=process_name,
-            stock=stock, survival_model=survival_model,
+            name=name,
+            process=process,
+            process_name=process_name,
+            stock=stock,
+            survival_model=survival_model,
         )
     elif inflow is not None:
-        logging.info('Creating InflowDrivenDSM object')
+        logging.info("Creating InflowDrivenDSM object")
         return InflowDrivenDSM(
-            name=name, process=process, process_name=process_name,
-            inflow=inflow, survival_model=survival_model
+            name=name,
+            process=process,
+            process_name=process_name,
+            inflow=inflow,
+            survival_model=survival_model,
         )
 
 
@@ -88,12 +103,12 @@ def get_survival_model(ldf_type: str):
     """Provides a map whereby the user passes a string and a surival model (class, not instance)
     is returned."""
     survival_map = {
-        'Fixed': FixedSurvival,
-        'Normal': NormalSurvival,
-        'FoldedNormal': FoldedNormalSurvival,
-        'LogNormal': LogNormalSurvival,
-        'Weibull': WeibullSurvival,
+        "Fixed": FixedSurvival,
+        "Normal": NormalSurvival,
+        "FoldedNormal": FoldedNormalSurvival,
+        "LogNormal": LogNormalSurvival,
+        "Weibull": WeibullSurvival,
     }
     if ldf_type not in survival_map:
-        raise ValueError(f'ldf_type must be one of {list(survival_map.keys())}.')
+        raise ValueError(f"ldf_type must be one of {list(survival_map.keys())}.")
     return survival_map[ldf_type]

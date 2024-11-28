@@ -1,46 +1,41 @@
-[tool.poetry]
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "sodym"
 version = "0.1.0"
-description = ""
-authors = ["Jakob Dürrwächter, Merlin Hosak, Stefan Pauliuk"]
+authors = [
+    {name = "Jakob Dürrwächter"},
+    {name = "Merlin Hosak"},
+]
 readme = "README.md"
-packages = [{include = "sodym"}]
+requires-python = ">= 3.10"
+dependencies = [
+    "matplotlib>=3.7.1",
+    "numpy>=1.25.0",
+    "scipy>=1.11.0",
+    "PyYAML>=6.0",
+    "pandas>=2.0.2",
+    "pickle4>=0.0.1",
+    "plotly>=5.18.0",
+    "pydantic>=2.8.2",
+    "docformatter>=1.7.5",
+    "openpyxl>=3.1.5",
+    "nbformat>=5.10.4",
+    "jupytext>=1.16.4",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-matplotlib = "^3.7.1"
-numpy = "^1.25.0"
-scipy = "^1.11.0"
-PyYAML = "^6.0"
-pandas = "^2.0.2"
-pickle4 = "^0.0.1"
-plotly = "^5.18.0"
-pydantic = "^2.8.2"
-ruff = "^0.5.6"
-docformatter = "^1.7.5"
-openpyxl = "^3.1.5"
-nbformat = "^5.10.4"
-
-[tool.poetry.group.examples.dependencies]
-jupyter = "^1.1.1"
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.2"
-polyfactory = "^2.16.2"
-
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-sphinx = "^7.4.0"
-sphinx-pydantic = "^0.1.1"
-autodoc-pydantic = "^2.2.0"
-sphinx-rtd-theme = "^2.0.0"
-myst-parser = "^4.0.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[project.optional-dependencies]
+examples = ["jupyter>=1.1.1"]
+test = [
+    "pytest>=8.3.2",
+    "polyfactory>=2.16.2",
+]
+docs = [
+    "sphinx>=7.4.0",
+    "sphinx-pydantic>=0.1.1",
+    "autodoc-pydantic>=2.2.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "myst-parser>=4.0.0",
+]

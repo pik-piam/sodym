@@ -7,30 +7,30 @@ from sodym import DimensionDefinition, MFADefinition
 def test_validate_dimension_definition():
     # example that raises a validation error
     with pytest.raises(ValidationError) as error_msg:
-        DimensionDefinition(name='something', letter='too_long', dtype=str)
-    assert 'letter' in str(error_msg.value)
+        DimensionDefinition(name="something", letter="too_long", dtype=str)
+    assert "letter" in str(error_msg.value)
 
     # example that does not raise an error
-    DimensionDefinition(name='something', letter='s', dtype=str)
+    DimensionDefinition(name="something", letter="s", dtype=str)
 
 
 def test_validate_mfa_definition():
-   # example with no dimensions defined
+    # example with no dimensions defined
     with pytest.raises(ValidationError) as error_msg:
         MFADefinition(
             dimensions=[],
             processes=[],
             flows=[],
             stocks=[
-                {'name': 'stock_zero', 'dim_letters': ('t', )},
+                {"name": "stock_zero", "dim_letters": ("t")},
             ],
             parameters=[],
         )
-    assert 'dim_letters' in str(error_msg.value)
+    assert "dim_letters" in str(error_msg.value)
 
     dimensions = [
-        {'name': 'time', 'letter': 't', 'dtype': int},
-        {'name': 'place', 'letter': 'p', 'dtype': str}
+        {"name": "time", "letter": "t", "dtype": int},
+        {"name": "place", "letter": "p", "dtype": str},
     ]
 
     # example with mismatching dimensions between attributes
@@ -40,20 +40,20 @@ def test_validate_mfa_definition():
             processes=[],
             flows=[],
             stocks=[
-                {'name': 'bad_stock', 'dim_letters': ('t', 'x')},
+                {"name": "bad_stock", "dim_letters": ("t", "x")},
             ],
             parameters=[],
         )
-    assert 'bad_stock' in str(error_msg.value)
+    assert "bad_stock" in str(error_msg.value)
 
     # example with valid dimensions in stock
-    for letter_combinations in ('t', 'p'), ('t', ), ('p', ):
+    for letter_combinations in ("t", "p"), ("t",), ("p",):
         MFADefinition(
             dimensions=dimensions,
             processes=[],
             flows=[],
             stocks=[
-                {'name': 'good_stock', 'dim_letters': letter_combinations},
+                {"name": "good_stock", "dim_letters": letter_combinations},
             ],
             parameters=[],
         )

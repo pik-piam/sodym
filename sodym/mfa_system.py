@@ -40,6 +40,7 @@ class MFASystem(PydanticBaseModel):
     MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
     """
+
     model_config = ConfigDict(protected_namespaces=())
 
     dims: DimensionSet
@@ -60,10 +61,16 @@ class MFASystem(PydanticBaseModel):
             name: Process(name=name, id=id) for id, name in enumerate(definition.processes)
         }
         flows = make_empty_flows(processes=processes, flow_definitions=definition.flows, dims=dims)
-        stocks = make_empty_stocks(processes=processes, stock_definitions=definition.stocks, dims=dims)
+        stocks = make_empty_stocks(
+            processes=processes, stock_definitions=definition.stocks, dims=dims
+        )
         return cls(
-            dims=dims, parameters=parameters, scalar_parameters=scalar_parameters,
-            processes=processes, flows=flows, stocks=stocks,
+            dims=dims,
+            parameters=parameters,
+            scalar_parameters=scalar_parameters,
+            processes=processes,
+            flows=flows,
+            stocks=stocks,
         )
 
     @abstractmethod
@@ -81,7 +88,7 @@ class MFASystem(PydanticBaseModel):
         - all flows leaving are negative
         - the stock change of the process
         """
-        contributions = {p : [] for p in self.processes.keys()}
+        contributions = {p: [] for p in self.processes.keys()}
 
         # Add flows to mass balance
         for flow in self.flows.values():
@@ -96,12 +103,12 @@ class MFASystem(PydanticBaseModel):
             contributions[stock.process.name].append(-stock.inflow)
             contributions[stock.process.name].append(stock.outflow)
             # add/subtract stock changes in system boundary for mass balance of whole system
-            contributions['sysenv'].append(stock.inflow)
-            contributions['sysenv'].append(-stock.outflow)
+            contributions["sysenv"].append(stock.inflow)
+            contributions["sysenv"].append(-stock.outflow)
 
         return contributions
 
-    def get_mass_balance(self, contributions: dict={}):
+    def get_mass_balance(self, contributions: dict = {}):
         """Calculate the mass balance for each process, by summing the contributions.
         The sum returns a :py:class:`sodym.named_dim_arrays.NamedDimArray`,
         with the dimensions common to all contributions.
@@ -110,15 +117,14 @@ class MFASystem(PydanticBaseModel):
             contributions = self.get_mass_contributions()
         return {p_name: sum(parts) for p_name, parts in contributions.items()}
 
-    def get_mass_totals(self, contributions: dict={}):
+    def get_mass_totals(self, contributions: dict = {}):
         """Calculate the total mass of a process by summing the absolute values of all
         the contributions.
         """
         if not contributions:
             contributions = self.get_mass_contributions()
         return {
-            p_name: sum([abs(part) for part in parts])
-            for p_name, parts in contributions.items()
+            p_name: sum([abs(part) for part in parts]) for p_name, parts in contributions.items()
         }
 
     def get_relative_mass_balance(self, epsilon=1e-9):
@@ -130,7 +136,7 @@ class MFASystem(PydanticBaseModel):
         totals = self.get_mass_totals(contributions=mass_contributions)
 
         relative_balance = {
-            p_name : (balances[p_name] / (totals[p_name] + epsilon)).values
+            p_name: (balances[p_name] / (totals[p_name] + epsilon)).values
             for p_name in self.processes
         }
         return relative_balance
@@ -141,14 +147,18 @@ class MFASystem(PydanticBaseModel):
 
         # returns array with dim [t, process, e]
         relative_balance = self.get_relative_mass_balance()  # assume no error if total sum is 0
-        id_failed = {p_name : np.any(rb > tolerance) for p_name, rb in relative_balance.items()}
+        id_failed = {p_name: np.any(rb > tolerance) for p_name, rb in relative_balance.items()}
         messages_failed = [
             f"{p_name} ({np.max(relative_balance[p_name])*100:.2f}% error)"
             for p_name in self.processes.keys()
-            if id_failed[p_name] and p_name!='sysenv'
+            if id_failed[p_name] and p_name != "sysenv"
         ]
         if any(id_failed.values()):
-            raise RuntimeError(f"Error, Mass Balance fails for processes {', '.join(messages_failed)}")
+            raise RuntimeError(
+                f"Error, Mass Balance fails for processes {', '.join(messages_failed)}"
+            )
         else:
-            logging.info(f"Success - Mass balance of {self.__class__.__name__} object is consistent!")
+            logging.info(
+                f"Success - Mass balance of {self.__class__.__name__} object is consistent!"
+            )
         return

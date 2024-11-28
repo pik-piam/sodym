@@ -6,9 +6,10 @@ from sodym.dimensions import DimensionSet
 from sodym.named_dim_arrays import NamedDimArray
 
 
-class SurvivalModel():
+class SurvivalModel:
     """Contains shared functionality across the various survival models."""
-    def __init__(self, dims: DimensionSet, time_letter: str='t', **kwargs):
+
+    def __init__(self, dims: DimensionSet, time_letter: str = "t", **kwargs):
         self.t = np.array(dims[time_letter].items)
         if not dims.dim_list[0].letter == time_letter:
             raise ValueError(
@@ -67,15 +68,20 @@ class SurvivalModel():
         self.pdf = np.zeros(self.shape_cohort)
         self.pdf[self.t_diag_indices] = 1.0 - np.moveaxis(self.sf.diagonal(0, 0, 1), -1, 0)
         for m in range(0, self.n_t):
-            self.pdf[m+1:, m, ...] = -1 * np.diff(self.sf[m:, m, ...], axis=0)
+            self.pdf[m + 1 :, m, ...] = -1 * np.diff(self.sf[m:, m, ...], axis=0)
         return self.pdf
 
 
 class FixedSurvival(SurvivalModel):
     """Fixed lifetime, age-cohort leaves the stock in the model year when a certain age,
     specified as 'Mean', is reached."""
+
     def __init__(
-        self, dims: DimensionSet, lifetime_mean: NamedDimArray, time_letter: str = 't', **kwargs,
+        self,
+        dims: DimensionSet,
+        lifetime_mean: NamedDimArray,
+        time_letter: str = "t",
+        **kwargs,
     ):
         lifetime_mean = lifetime_mean.cast_to(target_dims=dims)
         super().__init__(dims, time_letter, lifetime_mean=lifetime_mean.values)
@@ -87,9 +93,12 @@ class FixedSurvival(SurvivalModel):
 
 
 class StandardDeviationSurvivalModel(SurvivalModel):
-   def __init__(
-        self, dims: DimensionSet, lifetime_mean: NamedDimArray, lifetime_std: NamedDimArray,
-        time_letter: str = 't'
+    def __init__(
+        self,
+        dims: DimensionSet,
+        lifetime_mean: NamedDimArray,
+        lifetime_std: NamedDimArray,
+        time_letter: str = "t",
     ):
         lifetime_mean = lifetime_mean.cast_to(target_dims=dims)
         lifetime_std = lifetime_std.cast_to(target_dims=dims)
@@ -107,9 +116,10 @@ class NormalSurvival(StandardDeviationSurvivalModel):
     the latter being implemented in the method compute compute_o_c_from_s_c.
     As alternative, use lognormal or folded normal distribution options.
     """
+
     def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         if np.min(lifetime_mean) < 0:
-            raise ValueError('lifetime_mean must be greater than zero.')
+            raise ValueError("lifetime_mean must be greater than zero.")
 
         return scipy.stats.norm.sf(
             self.remaining_ages(m),
@@ -123,9 +133,10 @@ class FoldedNormalSurvival(StandardDeviationSurvivalModel):
     NOTE: call this with the parameters of the normal distribution mu and sigma of curve
     BEFORE folding, curve after folding will have different mu and sigma.
     """
+
     def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         if np.min(lifetime_mean) < 0:
-            raise ValueError('lifetime_mean must be greater than zero.')
+            raise ValueError("lifetime_mean must be greater than zero.")
 
         return scipy.stats.foldnorm.sf(
             self.remaining_ages(m),
@@ -143,33 +154,44 @@ class LogNormalSurvival(StandardDeviationSurvivalModel):
     https://docs.scipy.org/doc/scipy-0.13.0/reference/generated/scipy.stats.lognorm.html
     Same result as EXCEL function "=LOGNORM.VERT(x;LT_LN;SG_LN;TRUE)"
     """
+
     def survival_function_by_year_id(self, m, lifetime_mean, lifetime_std):
         # calculate parameter mu of underlying normal distribution:
         lt_ln = np.log(
             lifetime_mean[m, ...]
             / np.sqrt(
-                1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                1
+                + (
+                    lifetime_mean[m, ...]
+                    * lifetime_mean[m, ...]
+                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                )
             )
         )
         # calculate parameter sigma of underlying normal distribution
         sg_ln = np.sqrt(
             np.log(
-                1 + lifetime_mean[m, ...] * lifetime_mean[m, ...]
-                / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                1
+                + (
+                    lifetime_mean[m, ...]
+                    * lifetime_mean[m, ...]
+                    / (lifetime_std[m, ...] * lifetime_std[m, ...])
+                )
             )
         )
         # compute survial function
-        return scipy.stats.lognorm.sf(
-            self.remaining_ages(m), s=sg_ln, loc=0, scale=np.exp(lt_ln)
-        )
+        return scipy.stats.lognorm.sf(self.remaining_ages(m), s=sg_ln, loc=0, scale=np.exp(lt_ln))
 
 
 class WeibullSurvival(SurvivalModel):
     """Weibull distribution with standard definition of scale and shape parameters."""
+
     def __init__(
-        self, dims: DimensionSet, lifetime_shape: NamedDimArray, lifetime_scale: NamedDimArray,
-        time_letter: str = 't'
+        self,
+        dims: DimensionSet,
+        lifetime_shape: NamedDimArray,
+        lifetime_scale: NamedDimArray,
+        time_letter: str = "t",
     ):
         lifetime_shape = lifetime_shape.cast_to(target_dims=dims)
         lifetime_scale = lifetime_scale.cast_to(target_dims=dims)
@@ -177,7 +199,7 @@ class WeibullSurvival(SurvivalModel):
             dims=dims,
             time_letter=time_letter,
             lifetime_shape=lifetime_shape.values,
-            lifetime_scale=lifetime_scale.values
+            lifetime_scale=lifetime_scale.values,
         )
 
     def survival_function(self, m, lifetime_shape, lifetime_scale, **kwargs):

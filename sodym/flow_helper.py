@@ -7,9 +7,11 @@ from .flow_naming import process_names_with_arrow
 
 
 def make_empty_flows(
-        processes: dict[str, Process], flow_definitions: list[FlowDefinition],
-        dims: DimensionSet, naming: Callable[[Process, Process], str] = process_names_with_arrow
-        ) -> dict[str, Flow]:
+    processes: dict[str, Process],
+    flow_definitions: list[FlowDefinition],
+    dims: DimensionSet,
+    naming: Callable[[Process, Process], str] = process_names_with_arrow,
+) -> dict[str, Flow]:
     """Initialize all defined flows with zero values."""
     flows = {}
     for flow_definition in flow_definitions:

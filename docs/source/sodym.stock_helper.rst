@@ -7,5 +7,5 @@ Stock helper
 
    make_empty_stock
    make_empty_stocks
-   create_dynamic_stocks
+   create_dynamic_stock
    get_survival_model
