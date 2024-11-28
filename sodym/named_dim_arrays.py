@@ -206,6 +206,12 @@ class NamedDimArray(PydanticBaseModel):
         )
         return NamedDimArray(dims=dims_out, values=values_out)
 
+    def abs(self):
+        return NamedDimArray(dims=self.dims, values=np.abs(self.values))
+
+    def sign(self):
+        return NamedDimArray(dims=self.dims, values=np.sign(self.values))
+
     def __neg__(self):
         return NamedDimArray(dims=self.dims, values=-self.values)
 
@@ -252,7 +258,7 @@ class NamedDimArray(PydanticBaseModel):
             if dim_to_columns not in self.dims.names:
                 raise ValueError(f"Dimension name {dim_to_columns} not found in nda.dims.names")
             df.reset_index(inplace=True)
-            index_names = [n for n in self.dims.names if n!=dim_to_columns]
+            index_names = [n for n in self.dims.names if n != dim_to_columns]
             df = df.pivot(index=index_names, columns=dim_to_columns, values="value")
         if not index:
             df.reset_index(inplace=True)
@@ -270,6 +276,13 @@ class NamedDimArray(PydanticBaseModel):
 
     def get_shares_over(self, dim_letters: tuple) -> "NamedDimArray":
         """Get shares of the NamedDimArray along a tuple of dimensions, indicated by letter."""
+        assert all(
+            [d in self.dims.letters for d in dim_letters]
+        ), "Dimensions to get share of must be in the object"
+
+        if all([d in dim_letters for d in self.dims.letters]):
+            return self / self.sum_values()
+
         return self / self.sum_nda_over(sum_over_dims=dim_letters)
 
 
