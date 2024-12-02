@@ -112,6 +112,7 @@ flows = make_empty_flows(processes=processes, flow_definitions=flow_definitions,
 #
 # We just need to define the compute method with our system equations, as all the other things we need are inherited from the MFASystem class.
 
+
 # %%
 class SimpleMFA(MFASystem):
     def compute(self):
