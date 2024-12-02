@@ -14,6 +14,8 @@ Copyright (c) 2018 Industrial Ecology<br>
 author: Stefan Pauliuk, Uni Freiburg, Germany<br>
 https://github.com/IndEcol/ODYM<br>
 
+The development of sodym was conducted within the TRANSIENCE project, grant number 101137606, funded by the European Commission within the Horizon Europe Research and Innovation Programme.
+
 ## Installation
 
 sodym dependencies are managed with [pip](https://pypi.org/project/pip/).
