@@ -68,7 +68,9 @@ class NamedDimArray(PydanticBaseModel):
         return self
 
     @classmethod
-    def from_dims_superset(cls, dims_superset: DimensionSet, dim_letters: tuple = None, **kwargs):
+    def from_dims_superset(
+        cls, dims_superset: DimensionSet, dim_letters: tuple = None, **kwargs
+    ) -> 'NamedDimArray':
         """
         Parameters:
             dims_superset: DimensionSet from which the objects dimensions are derived
@@ -80,11 +82,11 @@ class NamedDimArray(PydanticBaseModel):
         dims = dims_superset.get_subset(dim_letters)
         return cls(dims=dims, **kwargs)
 
-    def sub_array_handler(self, definition):
+    def sub_array_handler(self, definition) -> 'SubArrayHandler':
         return SubArrayHandler(self, definition)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int]:
         return self.dims.shape()
 
     def set_values(self, values: np.ndarray):

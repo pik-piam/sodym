@@ -4,9 +4,9 @@ plugins:
   - mkdocstrings
   - mkdocs-jupyter:
       execute: true
+  - include-markdown
 
 nav:
-  - index.md
   - Documentation:
     - code_documentation/model_and_components.md
     - code_documentation/stocks.md

@@ -1,9 +1,10 @@
 # sodym
 The sodym package provides key functionality for material flow analysis, including
-- the class `MFASystem` acting as a template (parent class) for users to create their own material flow models
-- the class `NamedDimArray` handling mathematical operations between multi-dimensional arrays
+
+- the class `MFASystem` acting as a template (parent class) for users to create their own material flow models.
+- the class `NamedDimArray` handling mathematical operations between multi-dimensional arrays.
 - different classes like `DynamicStockModel` representing stocks accumulation, in- and outflows based on age cohort tracking and lifetime distributions. Those can be integrated in the `MFASystem`.
-- different options for data input and export, as well as visualization
+- different options for data input and export, as well as visualization.
 
 ## Thanks
 
@@ -28,18 +29,14 @@ dependencies, including those for running the tests, making the documentation, a
 
 Note that it is advisable to do this within a virtual environment.
 
-## Examples
-
-The notebooks in the [examples](examples) folder provide usage examples of the code.
-
 ## Why choose sodym?
 
 MFA models mainly consist on mathematical operations on different multi-dimensional arrays.
 
-For example, the generation of different waste types `waste` might be a 3D-array defined over the dimensions time $t$, region $r$ and waste type $w$, and might be calculated from multiplying `end_of_life_products` (defined over time, region, and product type $p$) with a `waste_share` mapping from product type to waste type.
+For example, the generation of different waste types `waste` might be a 3D-array defined over the dimensions time _t_, region _r_ and waste type _w_, and might be calculated from multiplying `end_of_life_products` (defined over time, region, and product type _p_) with a `waste_share` mapping from product type to waste type.
 In numpy, the according matrix multiplication can be carried out nicely with the `einsum` function, were an index string indicates the involved dimensions:
 
-```
+```python
 waste = np.einsum('trw,pw->trp', end_of_life_products, waste_share)
 ```
 
@@ -47,7 +44,7 @@ sodym uses this function under the hood, but wraps it in a data type `NamedDimAr
 
 With this, the above example reduces to
 
-```
+```python
 waste[...] = end_of_life_products * waste_share
 ```
 
