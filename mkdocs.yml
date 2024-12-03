@@ -8,7 +8,11 @@ plugins:
 
 nav:
   - Documentation:
-    - code_documentation/model_and_components.md
+    - code_documentation/mfa_system.md
+    - code_documentation/mfa_definition.md
+    - code_documentation/data_reader.md
+    - code_documentation/dimensions.md
+    - code_documentation/named_dim_arrays.md
     - code_documentation/stocks.md
     - code_documentation/data_writing_and_plotting.md
   - Examples:

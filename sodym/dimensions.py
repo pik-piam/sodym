@@ -1,3 +1,5 @@
+"""Home to the `Dimension` and `DimensionSet` classes."""
+
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
 from typing import Dict

@@ -1,3 +1,9 @@
+"""Home to definition classes.
+
+These are used when defining the MFA system, and can be used to check the input data
+and put it into ojects with the desired properties.
+"""
+
 import numpy as np
 from pydantic import (
     BaseModel as PydanticBaseModel,
@@ -30,6 +36,7 @@ class DimensionDefinition(PydanticBaseModel):
 
 
 class DefinitionWithDimLetters(PydanticBaseModel):
+    """Base class for any definition that contains dimesnsion letters."""
     model_config = ConfigDict(protected_namespaces=())
 
     dim_letters: tuple

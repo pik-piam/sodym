@@ -1,3 +1,8 @@
+"""Home to a bass class for MFA systems.
+
+Specific MFA models can be built that inherit from this class.
+"""
+
 import logging
 from abc import abstractmethod
 from typing import Dict, Optional

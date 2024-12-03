@@ -1,3 +1,7 @@
+"""Home to various `Stock` classes,
+including flow-driven stocks and dynamic (lifetime-based) stocks.
+"""
+
 from abc import abstractmethod
 import numpy as np
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict

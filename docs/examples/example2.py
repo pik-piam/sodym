@@ -69,7 +69,7 @@ from sodym import (
 )
 from sodym.flow_helper import make_empty_flows
 from sodym.stock_helper import make_empty_stocks
-from sodym.flow_naming import process_names_with_arrow
+from sodym.flow_helper import process_names_with_arrow
 from sodym.export.array_plotter import PlotlyArrayPlotter
 
 # %% [markdown]

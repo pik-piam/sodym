@@ -1,9 +1,22 @@
+"""Home for helper functions to the `Flow` class, including naming functions."""
+
 from typing import Callable
 
 from .named_dim_arrays import Process, Flow
 from .dimensions import DimensionSet
 from .mfa_definition import FlowDefinition
-from .flow_naming import process_names_with_arrow
+
+
+def process_names_with_arrow(from_process: Process, to_process: Process) -> str:
+    return f"{from_process.name} => {to_process.name}"
+
+
+def process_names_no_spaces(from_process: Process, to_process: Process) -> str:
+    return f"{from_process.name}_to_{to_process.name}"
+
+
+def process_ids(from_process: Process, to_process: Process) -> str:
+    return f"F{from_process.id}_{to_process.id}"
 
 
 def make_empty_flows(

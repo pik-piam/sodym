@@ -1,3 +1,8 @@
+"""The classes and methods defined here are building blocks for creating MFA systems.
+This includes the base `NamedDimArray` class and its helper the `SubArrayHandler`,
+as well as applications of the `NamedDimArray` for specific model components.
+"""
+
 from collections.abc import Iterable
 from copy import deepcopy
 from collections import defaultdict

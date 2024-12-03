@@ -1,3 +1,9 @@
+"""Home to some data readers.
+
+Generally the idea would be to build an own data reader based on the template here,
+that reads the specific datasets required by your model.
+"""
+
 from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd

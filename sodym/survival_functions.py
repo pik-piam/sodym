@@ -1,3 +1,5 @@
+"""Home to various survival models, for use in dynamic stock modelling."""
+
 from abc import abstractmethod
 import numpy as np
 import scipy.stats
