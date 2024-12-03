@@ -51,7 +51,7 @@ class FlowDefinition(DefinitionWithDimLetters):
         >>> flow_one = FlowDefinition(from_process_name='fabrication', to_process_name='use', dim_letters=('r', 't'))
         >>> flow_two = FlowDefinition(from_process_name='use', to_process_name='end_of_life', dim_letters=('r', 't'))
 
-    These are then used in the :py:class:MFADefinition, for creating a custom MFA System.
+    These are then used in the MFADefinition, for creating a custom MFA System.
     """
 
     from_process_name: str = Field(

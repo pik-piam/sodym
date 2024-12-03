@@ -36,8 +36,8 @@ class MFASystem(PydanticBaseModel):
         >>> mfa = MFASystem(dim=dims, ...)
         >>> mfa.compute()
 
-    MFA flows, stocks and parameters are defined as instances of subclasses of :py:class:`sodym.named_dim_arrays.NamedDimArray`.
-    Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
+    MFA flows, stocks and parameters are defined as instances of subclasses of `sodym.named_dim_arrays.NamedDimArray`.
+    Dimensions are managed with the `sodym.dimensions.Dimension` and `sodym.dimensions.DimensionSet`.
     """
 
     model_config = ConfigDict(protected_namespaces=())
@@ -109,7 +109,7 @@ class MFASystem(PydanticBaseModel):
 
     def get_mass_balance(self, contributions: dict = {}):
         """Calculate the mass balance for each process, by summing the contributions.
-        The sum returns a :py:class:`sodym.named_dim_arrays.NamedDimArray`,
+        The sum returns a `sodym.named_dim_arrays.NamedDimArray`,
         with the dimensions common to all contributions.
         """
         if not contributions:
