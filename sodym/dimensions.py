@@ -1,3 +1,5 @@
+"""Home to the `Dimension` and `DimensionSet` classes."""
+
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
 from typing import Dict
@@ -13,7 +15,7 @@ class Dimension(PydanticBaseModel):
         >>> from sodym import Dimension
         >>> regions = Dimension(name='Region', letter='r', items=['Earth', 'Moon', 'Sun'])
 
-    The list of items can be loaded using a :py:class:`sodym.data_reader.DataReader` object,
+    The list of items can be loaded using a `sodym.data_reader.DataReader` object,
     or set directly, for example if a subset of an existing dimension is formed.
     """
 
@@ -47,7 +49,7 @@ class DimensionSet(PydanticBaseModel):
         >>> time = Dimension(name='Time', letter='t', items=[1990, 2000, 2010, 2020, 2030])
         >>> dimensions = DimensionSet([regions, time])
 
-    It is expected that DimensionSet instances are created via the :py:class:`sodym.data_reader.DataReader`.
+    It is expected that DimensionSet instances are created via the `sodym.data_reader.DataReader`.
 
         >>> from sodym import DataReader, DimensionDefinition, Dimension
         >>> class MyDataReader(DataReader):
@@ -101,7 +103,7 @@ class DimensionSet(PydanticBaseModel):
         return tuple(self.size(key) for key in keys)
 
     def get_subset(self, dims: tuple = None) -> "DimensionSet":
-        """Selects :py:class:`Dimension` objects from the object attribute dim_list,
+        """Selects `Dimension` objects from the object attribute dim_list,
         according to the dims passed, which can be either letters or names.
         Returns a copy if dims are not given.
         """
