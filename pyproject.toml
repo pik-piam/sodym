@@ -33,9 +33,8 @@ test = [
     "polyfactory>=2.16.2",
 ]
 docs = [
-    "sphinx>=7.4.0",
-    "sphinx-pydantic>=0.1.1",
-    "autodoc-pydantic>=2.2.0",
-    "sphinx-rtd-theme>=2.0.0",
-    "myst-parser>=4.0.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-jupyter>=0.25.1",
+    "mkdocstrings-python>=1.12.2",
+    "mkdocs-include-markdown-plugin>=7.1.2",
 ]
