@@ -39,8 +39,8 @@ def stock_stack(stocks: list[Stock], dimension: Dimension) -> FlowDrivenStock:
 
 
 def make_empty_stock(
-        stock_definition: StockDefinition, dims: DimensionSet, process: Process
-    ) -> FlowDrivenStock:
+    stock_definition: StockDefinition, dims: DimensionSet, process: Process
+) -> FlowDrivenStock:
     """Initialises a FlowDrivenStock object with zero values for the stock, inflow and outflow.
     The stock, inflow and outflow have the specified dimensions,
     which ensures that when values are set later, the shape of the data is correct.
@@ -55,8 +55,7 @@ def make_empty_stock(
 def make_empty_stocks(
     stock_definitions: list[StockDefinition], processes: dict[str, Process], dims: DimensionSet
 ) -> FlowDrivenStock:
-    """Initialise empty FlowDrivenStock objects for each of the stocks listed in stock definitions.
-    """
+    """Initialise empty FlowDrivenStock objects for each of the stocks listed in stock definitions."""
     empty_stocks = {}
     for stock_definition in stock_definitions:
         dim_subset = dims.get_subset(stock_definition.dim_letters)

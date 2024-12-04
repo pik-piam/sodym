@@ -26,10 +26,12 @@
 
 #%%
 import os
-if os.getcwd()[-5:] == 'sodym':
+
+if os.getcwd()[-5:] == "sodym":
     os.chdir("docs/examples")
 #%%
 from IPython.display import Image, display
+
 display(Image("pictures/SimpleProcess.png"))
 
 #%% [markdown]

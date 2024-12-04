@@ -37,6 +37,7 @@ class DimensionDefinition(PydanticBaseModel):
 
 class DefinitionWithDimLetters(PydanticBaseModel):
     """Base class for any definition that contains dimesnsion letters."""
+
     model_config = ConfigDict(protected_namespaces=())
 
     dim_letters: tuple
