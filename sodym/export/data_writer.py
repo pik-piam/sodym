@@ -11,7 +11,7 @@ from .helper import to_valid_file_name
 def export_mfa_to_pickle(mfa, export_path: str):
     dict_out = convert_to_dict(mfa)
     pickle.dump(dict_out, open(export_path, "wb"))
-    logging.info(f'Data saved to {export_path}')
+    logging.info(f'Data saved in pickle format to {export_path}')
 
 
 def export_mfa_flows_to_csv(mfa: MFASystem, export_directory: str):
@@ -20,7 +20,7 @@ def export_mfa_flows_to_csv(mfa: MFASystem, export_directory: str):
     for flow_name, flow in mfa.flows.items():
         path_out = os.path.join(export_directory, f'{to_valid_file_name(flow_name)}.csv')
         flow.to_df().to_csv(path_out)
-    logging.info(f'Data saved in directory {export_directory}')
+    logging.info(f'Data of flows saved in csv format to directory {export_directory}')
 
 
 def export_mfa_stocks_to_csv(mfa: MFASystem, export_directory: str, with_in_and_out: bool = False):
@@ -35,7 +35,7 @@ def export_mfa_stocks_to_csv(mfa: MFASystem, export_directory: str, with_in_and_
             df = output.to_df()
             path_out = os.path.join(export_directory, f'{to_valid_file_name(stock_name)}_{attribute_name}.csv')
             df.to_csv(path_out, index=False)
-    logging.info(f'Data saved in directory {export_directory}')
+    logging.info(f'Data of stocks saved in csv format to directory {export_directory}')
 
 
 def convert_to_dict(mfa: MFASystem, type: str = "numpy") -> dict:
