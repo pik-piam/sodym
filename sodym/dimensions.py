@@ -1,7 +1,10 @@
 from copy import copy
 from pydantic import BaseModel as PydanticBaseModel, Field, AliasChoices, model_validator
-from typing import Dict
+from typing import Dict, Iterator, Optional
+import numpy as np
+import pandas as pd
 
+from .mfa_definition import DimensionDefinition
 
 class Dimension(PydanticBaseModel):
     """One of multiple dimensions over which MFA arrays are defined.
@@ -22,6 +25,53 @@ class Dimension(PydanticBaseModel):
         ..., min_length=1, max_length=1, validation_alias=AliasChoices("letter", "dim_letter")
     )
     items: list
+    dtype: Optional[type] = None
+    """If given, a check is performed that all items have this datatype. Recommended for safety,
+    especially in ambiguous cases such as calendar years (int or str)
+    """
+
+    @model_validator(mode="after")
+    def items_have_datatype(self):
+        if self.dtype is not None and any([not isinstance(i, self.dtype) for i in self.items]):
+            raise ValueError("All items must have the same datatype as specified in dtype.")
+        return self
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame, definition: DimensionDefinition) -> "Dimension":
+        """Expects
+
+        Args:
+            df (pd.DataFrame): A single-column or single-row data frame, which is transformed to the dimension items.
+            definition (DimensionDefinition): The definition of the dimension.
+
+        Returns:
+            Dimension: _description_
+        """
+        data = df.to_numpy()
+        return cls.from_np(data, definition)
+
+    @classmethod
+    def from_np(cls, data: np.ndarray, definition: DimensionDefinition) -> "Dimension":
+        """Create Dimension object from definition and a numpy array for the items.
+        Performs checks on the array and transforms to list of items.
+
+        Args:
+            data (np.ndarray): A numpy array where only one dimension exceeds size 1.
+            definition (DimensionDefinition): The definition object
+
+        Returns:
+            Dimension: The dimension object.
+        """
+        if sum([s > 1 for s in data.shape]) > 1:
+            raise ValueError(
+                f"Dimension data for {definition.name} must have only one row or column."
+            )
+        data = data.flatten().tolist()
+        # delete header for items if present
+        if data[0] == definition.name:
+            data = data[1:]
+        data = [definition.dtype(item) for item in data]
+        return cls(name=definition.name, letter=definition.letter, items=data, dtype=definition.dtype)
 
     @property
     def len(self) -> int:
@@ -90,7 +140,7 @@ class DimensionSet(PydanticBaseModel):
         else:
             raise TypeError("Key must be string or int")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Dimension]:
         return iter(self.dim_list)
 
     def size(self, key: str):

@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 from typing import Literal, Optional, TYPE_CHECKING, Iterable
 from pydantic import BaseModel as PydanticBaseModel
+import itertools
 
+from .dimensions import Dimension
 if TYPE_CHECKING:
     from .named_dim_arrays import NamedDimArray
 
@@ -15,42 +17,89 @@ class NDADataFormat(PydanticBaseModel):
     columns_dim: Optional[str] = None
 
 
-class DataFrameToNDAConverter:
+class DataFrameToNDADataConverter:
+    """Converts a panda DataFrame with various possible formats to a numpy array that can be used
+    as values of a NamedDimArray.
+
+    Usually not called by the user, but from within the NamedDimArray from_df and
+    set_values_from_df methods.
+
+    Dimensions of the named dim array can be given in DataFrame columns or the index.
+    The DataFrame can be in long or wide format, i.e. there can either be one values column,
+    or the value columns are named by items of one NDA dimension.
+    If dimension names are not given in the respective index or column, they are inferred from the
+    items of the dimensions of the NamedDimArray.
+    Ordering of rows and columns is arbitrary, but the items across each dimension must be given,
+    must be complete and exactly match those of the NamedDimArray.
+    Dimensions with only one item do not need to be given in the DataFrame.
+    Supersets of dimensions (i.e. additional values) will lead to an error.
+
+    In case of errors, turning on debug logging might help to understand the process.
+    """
+
     def __init__(self, df: pd.DataFrame, nda: "NamedDimArray"):
         self.df = df.copy()
         self.nda = nda
         self.nda_values = self.get_nda_values()
 
     def get_nda_values(self) -> np.ndarray:
-
         logging.debug(
             f"Start setting values for NamedDimArray {self.nda.name} with dimensions {self.nda.dims.names} from dataframe."
         )
-
-        logging.debug(
-            "Dropping index. If index is needed, please apply df.reset_index() before passing df to nda."
-        )
-        self.df.reset_index(inplace=True, drop=True)
-
+        self._reset_non_default_index()
         self._determine_format()
-
         self._df_to_long_format()
-
         self._check_missing_dim_columns()
-
-        self.df.set_index(self.dim_columns, inplace=True)
-        self.df = self.df.sort_values(by=self.dim_columns)
-
+        self._convert_type()
+        self._sort_df()
         self._check_data_complete()
-
         return self.df[self.format.value_column].values.reshape(self.nda.shape)
 
+    def _reset_non_default_index(self):
+        if isinstance(self.df.index, pd.MultiIndex):
+            self.df.reset_index(inplace=True)
+        elif self.df.index.name is not None:
+            self.df.reset_index(inplace=True)
+        elif self.df.index.dtype != np.int64:
+            self.df.reset_index(inplace=True)
+        elif self.df.index.min() >= 1700 and self.df.index.max() <= 2300:
+            self.df.reset_index(inplace=True)
+
     def _determine_format(self):
+        self._get_dim_columns_by_name()
+        self._check_if_first_row_are_items()
+        self._check_for_dim_columns_by_items()
+        self._check_value_columns()
+
+    def _get_dim_columns_by_name(self):
         self.dim_columns = [c for c in self.df.columns if c in self.nda.dims.names]
         logging.debug(f"Recognized index columns by name: {self.dim_columns}")
 
-        self._check_for_dim_columns_by_items()
-        self._check_value_columns()
+    def _check_if_first_row_are_items(self):
+        """If data without columns names was read, but the first row was assumed to be column names,
+        the first row of the data frame might erroneously end up as column names.
+        This method checks if that is the case, and if so, prepends a row based on column names.
+        """
+        column_name = self.df.columns[0]
+        col_items = self.df[column_name].unique()
+        extended_col_items = [column_name] + col_items.tolist()
+        for dim in self.nda.dims:
+            if self.same_items(extended_col_items, dim):
+                self._add_column_names_as_row(column_name, dim)
+
+    def _add_column_names_as_row(self, column_name: str, dim: Dimension):
+        if len(self.dim_columns) > 0:
+            raise ValueError(
+                f"Ambiguouity detected: column with first item {column_name} could be "
+                f"dimension {dim.name} if the first row counts as an item, but columns "
+                f"{self.dim_columns} are already recognized as dimensions first row as name."
+                f" Please change the item names of the affected dimension, or use a"
+                f" different method to read data.")
+        # prepend a row to df with all the column names
+        self.df = pd.concat([pd.DataFrame([self.df.columns], columns=self.df.columns), self.df])
+        # rename columns to range from 0 to n, save original name
+        column_name = f"column {self.df.columns.get_loc(column_name)}"
+        self.df.columns = [f"column {i}" for i in range(len(self.df.columns))]
 
     def _check_for_dim_columns_by_items(self):
         for cn in self.df.columns:
@@ -66,8 +115,9 @@ class DataFrameToNDAConverter:
 
     def _check_if_dim_column_by_items(self, column_name: str) -> bool:
         logging.debug(f"Checking if {column_name} is a dimension by comparing items with dim items")
+        col_items = self.df[column_name].unique()
         for dim in self.nda.dims:
-            if self.same_items(self.df[column_name].unique(), dim.items):
+            if self.same_items(col_items, dim):
                 logging.debug(f"{column_name} is dimension {dim.name}.")
                 self.df.rename(columns={column_name: dim.name}, inplace=True)
                 self.dim_columns.append(dim.name)
@@ -75,18 +125,21 @@ class DataFrameToNDAConverter:
         return False
 
     def _check_value_columns(self):
-        value_cols = np.setdiff1d(self.df.columns, self.dim_columns)
+        value_cols = np.setdiff1d(list(self.df.columns), self.dim_columns)
         logging.debug(f"Assumed value columns: {value_cols}")
-        logging.debug("Trying to match set of value column names with items of dimension.")
-        value_cols_are_dim = self._check_if_value_columns_match_dim_items(value_cols)
-        if not value_cols_are_dim:
+        value_cols_are_dim_items = self._check_if_value_columns_match_dim_items(value_cols)
+        if not value_cols_are_dim_items:
             self._check_if_valid_long_format(value_cols)
 
     def _check_if_value_columns_match_dim_items(self, value_cols: list[str]) -> bool:
+        logging.debug("Trying to match set of value column names with items of dimension.")
         for dim in self.nda.dims:
-            if self.same_items(value_cols, dim.items):
+            if self.same_items(value_cols, dim):
                 logging.debug(f"Value columns match dimension items of {dim.name}.")
                 self.format = NDADataFormat(type="wide", columns_dim=dim.name)
+                if dim.dtype is not None:
+                    for c in value_cols:
+                        self.df.rename(columns={c: dim.dtype(c)}, inplace=True)
                 return True
         return False
 
@@ -107,18 +160,18 @@ class DataFrameToNDAConverter:
         if self.format.type != "wide":
             return
         logging.debug("Converting wide format to long format.")
-        value_cols = self.dims[self.format.columns_dim].items
+        value_cols = self.nda.dims[self.format.columns_dim].items
         self.df = self.df.melt(
             id_vars=[c for c in self.df.columns if c not in value_cols],
             value_vars=value_cols,
             var_name=self.format.columns_dim,
             value_name=self.format.value_column,
         )
-        self.format = NDADataFormat(type="long", value_column=self.format.value_column)
         self.dim_columns.append(self.format.columns_dim)
+        self.format = NDADataFormat(type="long", value_column=self.format.value_column)
 
     def _check_missing_dim_columns(self):
-        missing_dim_columns = np.setdiff1d(self.nda.dims.names, self.dim_columns)
+        missing_dim_columns = np.setdiff1d(list(self.nda.dims.names), self.dim_columns)
         for c in missing_dim_columns:
             if len(self.nda.dims[c].items) == 1:
                 self.df[c] = self.nda.dims[c].items[0]
@@ -128,20 +181,47 @@ class DataFrameToNDAConverter:
                     f"Dimension {c} from array has more than one item, but is not found in df. Please specify column in dataframe."
                 )
 
-    def _check_data_complete(self):
-        if self.df.index.has_duplicates:
-            raise Exception("Double entry in df!")
+    def _convert_type(self):
         for dim in self.nda.dims:
-            df_dim_items = self.df.index.get_level_values(dim.name).unique()
-            if not self.same_items(dim.items, df_dim_items):
-                raise Exception(
-                    f"Missing items in index for dimension {dim.name}! NamedDimArray items: {set(dim.items)}, df items: {set(df_dim_items)}"
-                )
-        if np.prod(self.nda.shape) != self.df.index.size:
-            raise Exception(
-                f"Dataframe is missing items! NamedDimArray size: {np.prod(self.shape)}, df size: {self.df.index.size}"
+            if dim.dtype is not None:
+                self.df[dim.name] = self.df[dim.name].map(dim.dtype)
+        self.df[self.format.value_column] = self.df[self.format.value_column].astype(np.float64)
+
+    def _sort_df(self):
+        """Sort the columns of the data frame according to the order of the dimensions in the
+        NamedDimArray.
+        Sort the rows of the data frame according to the order of the dimension items in the
+        NamedDimArray.
+        """
+        # sort columns
+        self.df = self.df[list(self.nda.dims.names) + [self.format.value_column]]
+        # sort rows
+        self.df = self.df.sort_values(
+            by=list(self.nda.dims.names),
+            key=lambda x: x.map(lambda y: self.nda.dims[x.name].items.index(y)))
+
+    def _check_data_complete(self):
+        # Generate expected index tuples from NamedDimArray dimensions
+        expected_index_tuples = set(itertools.product(*(dim.items for dim in self.nda.dims)))
+
+        # Generate actual index tuples from DataFrame columns
+        actual_index_tuples = set(self.df.drop(columns=self.format.value_column).itertuples(index=False, name=None))
+
+        # Compare the two sets
+        if expected_index_tuples != actual_index_tuples:
+            missing_items = expected_index_tuples - actual_index_tuples
+            unexpected_items = actual_index_tuples - expected_index_tuples
+            raise ValueError(
+                f"Dataframe index mismatch! Missing items: {missing_items}, Unexpected items: {unexpected_items}"
             )
+        if any(self.df[self.format.value_column].isna()):
+            raise ValueError("Empty cells/NaN values in value column!")
 
     @staticmethod
-    def same_items(arr1: Iterable, arr2: Iterable) -> bool:
-        return len(set(arr1).symmetric_difference(set(arr2))) == 0
+    def same_items(arr: Iterable, dim: Dimension) -> bool:
+        if dim.dtype is not None:
+            try:
+                arr = [dim.dtype(a) for a in arr]
+            except ValueError:
+                return False
+        return len(set(arr).symmetric_difference(set(dim.items))) == 0

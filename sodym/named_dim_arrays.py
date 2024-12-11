@@ -7,7 +7,7 @@ from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
 from typing import Optional
 
 from .dimensions import DimensionSet, Dimension
-from .df_to_nda import DataFrameToNDAConverter
+from .df_to_nda import DataFrameToNDADataConverter
 
 
 def is_iterable(arg):
@@ -265,7 +265,7 @@ class NamedDimArray(PydanticBaseModel):
         return df
 
     def set_values_from_df(self, df_in: pd.DataFrame):
-        self.set_values(DataFrameToNDAConverter(df_in, self).nda_values)
+        self.set_values(DataFrameToNDADataConverter(df_in, self).nda_values)
 
     def split(self, dim_letter: str) -> dict:
         """Reverse the named_dim_array_stack, returns a dictionary of NamedDimArray objects

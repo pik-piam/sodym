@@ -1,5 +1,4 @@
 import logging
-from abc import abstractmethod
 from typing import Dict, Optional
 
 import numpy as np
@@ -9,9 +8,10 @@ from .mfa_definition import MFADefinition
 from .dimensions import DimensionSet
 from .named_dim_arrays import Flow, Process, Parameter, NamedDimArray
 from .stocks import Stock
+from .process_helper import make_processes
 from .stock_helper import make_empty_stocks
 from .flow_helper import make_empty_flows
-from .data_reader import DataReader
+from .data_reader import DataReader, CompoundDataReader, CSVDimensionReader, CSVParameterReader, CSVScalarDataReader, ExcelDimensionReader, ExcelParameterReader, ExcelScalarDataReader
 
 
 class MFASystem(PydanticBaseModel):
@@ -41,25 +41,23 @@ class MFASystem(PydanticBaseModel):
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
     """
 
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(protected_namespaces=(), extra='allow')
 
     dims: DimensionSet
     parameters: Dict[str, Parameter]
     scalar_parameters: Optional[dict] = {}
     processes: Dict[str, Process]
     flows: Dict[str, Flow]
-    stocks: Dict[str, Stock]
+    stocks: Optional[Dict[str, Stock]] = {}
 
     @classmethod
     def from_data_reader(cls, definition: MFADefinition, data_reader: DataReader):
         """Define and set up the MFA system and load all required data.
         Initialises stocks and flows with all zero values."""
-        dims = data_reader.dimension_reader.read_all(definition.dimensions)
-        parameters = data_reader.parameter_reader.read_all(definition.parameters, dims=dims)
-        scalar_parameters = data_reader.scalar_data_reader.read(definition.scalar_parameters)
-        processes = {
-            name: Process(name=name, id=id) for id, name in enumerate(definition.processes)
-        }
+        dims = data_reader.read_dimensions(definition.dimensions)
+        parameters = data_reader.read_parameters(definition.parameters, dims=dims)
+        scalar_parameters = data_reader.read_scalar_data(definition.scalar_parameters)
+        processes = make_processes(definition.processes)
         flows = make_empty_flows(processes=processes, flow_definitions=definition.flows, dims=dims)
         stocks = make_empty_stocks(
             processes=processes, stock_definitions=definition.stocks, dims=dims
@@ -73,10 +71,96 @@ class MFASystem(PydanticBaseModel):
             stocks=stocks,
         )
 
-    @abstractmethod
+    @classmethod
+    def from_csv(
+        cls,
+        definition: MFADefinition,
+        dimension_files: dict,
+        parameter_files: dict,
+        scalar_file: str = None,
+        ):
+        """Define and set up the MFA system and load all required data from CSV files.
+        Initialises stocks and flows with all zero values.
+
+        See :py:class:`sodym.data_reader.CSVDimensionReader`,
+        :py:class:`sodym.data_reader.CSVParameterReader`, and
+        :py:class:`sodym.data_reader.CSVScalarDataReader` for more information on the expected data
+         format.
+
+        :param definition: The MFA definition object
+        :param dimension_files: A dictionary mapping dimension names to CSV files
+        :param parameter_files: A dictionary mapping parameter names to CSV files
+        :param scalar_file: The path to the CSV file containing scalar data
+        """
+
+        dimension_reader = CSVDimensionReader(
+            dimension_files=dimension_files,
+            )
+        parameter_reader = CSVParameterReader(
+            parameter_files=parameter_files,
+            )
+        scalar_data_reader = CSVScalarDataReader(
+            scalar_file=scalar_file,
+            )
+        data_reader = CompoundDataReader(
+            dimension_reader=dimension_reader,
+            parameter_reader=parameter_reader,
+            scalar_data_reader=scalar_data_reader,
+            )
+        return cls.from_data_reader(definition, data_reader)
+
+    @classmethod
+    def from_excel(
+        cls,
+        definition: MFADefinition,
+        dimension_files: dict,
+        parameter_files: dict,
+        scalar_file: str = None,
+        dimension_sheets: dict = None,
+        parameter_sheets: dict = None,
+        scalar_sheet: str = None,
+        ):
+        """Define and set up the MFA system and load all required data from Excel files.
+        Initialises stocks and flows with all zero values.
+        Builds a CompoundDataReader from Excel readers, and calls the from_data_reader class method.
+
+        See :py:class:`sodym.data_reader.ExcelDimensionReader`,
+        :py:class:`sodym.data_reader.ExcelParameterReader`, and
+        :py:class:`sodym.data_reader.ExcelScalarDataReader` for more information on the expected
+         data format.
+
+        :param definition: The MFA definition object
+        :param dimension_files: A dictionary mapping dimension names to Excel files
+        :param parameter_files: A dictionary mapping parameter names to Excel files
+        :param scalar_file: The path to the Excel file containing scalar data
+        :param dimension_sheets: A dictionary mapping dimension names to sheet names in the Excel files
+        :param parameter_sheets: A dictionary mapping parameter names to sheet names in the Excel files
+        :param scalar_sheet: The name of the sheet in the Excel file containing scalar data
+        """
+        dimension_reader = ExcelDimensionReader(
+            dimension_files=dimension_files,
+            dimension_sheets=dimension_sheets,
+        )
+        parameter_reader = ExcelParameterReader(
+            parameter_files=parameter_files,
+            parameter_sheets=parameter_sheets,
+        )
+        scalar_data_reader = ExcelScalarDataReader(
+            scalar_file=scalar_file,
+            scalar_sheet=scalar_sheet
+            )
+        data_reader = CompoundDataReader(
+            dimension_reader=dimension_reader,
+            parameter_reader=parameter_reader,
+            scalar_data_reader=scalar_data_reader,
+            )
+        return cls.from_data_reader(definition, data_reader)
+
     def compute(self):
         """Perform all computations for the MFA system."""
-        pass
+        raise NotImplementedError(
+            "The compute method must be implemented in a subclass of MFASystem if it is to be used."
+            )
 
     def get_new_array(self, **kwargs) -> NamedDimArray:
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims
