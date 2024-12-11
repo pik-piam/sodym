@@ -46,15 +46,16 @@ class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
         specified_dim_attributes = [d for d in dim_attributes if d is not None]
         excess_dims = set(self.array.dims.names) - set(specified_dim_attributes)
         if excess_dims:
-            raise ValueError("All dimensions of passed array must be given exactly once. Either as subplot_dim, linecolor_dim, or intra_line_dim." +
-                             f"Excess dimensions: {', '.join(excess_dims)}; " +
-                             "Sum or slice array along these dims before passing it to the plotter.")
+            raise ValueError(
+                "All dimensions of passed array must be given exactly once. Either as subplot_dim, linecolor_dim, or intra_line_dim." +
+                f"Excess dimensions: {', '.join(excess_dims)}; " +
+                "Sum or slice array along these dims before passing it to the plotter.")
         if self.x_array is not None:
             if any(d not in self.array.dims.names for d in self.x_array.dims.names):
                 raise ValueError("x_array must have the same dimensions as array, or a subset of them.")
         return self
 
-    def plot(self, save_path: str=None, do_show: bool = False):
+    def plot(self, save_path: str = None, do_show: bool = False):
         self.fill_fig()
         subplots_array, subplots_x_array = self.prepare_arrays()
         self.plot_all_subplots(subplots_array, subplots_x_array)
@@ -105,7 +106,7 @@ class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
             self.nx = int(np.ceil(np.sqrt(n_subplots)))
             self.ny = int(np.ceil(n_subplots / self.nx))
             self.subplot_titles = [f"{self.display_name(self.subplot_dim)}={self.display_name(item)}" \
-                for item in self.array.dims[self.subplot_dim].items]
+                                   for item in self.array.dims[self.subplot_dim].items]
         self.fig = self.get_fig()
 
     def get_x_array_like_value_array(self):
@@ -118,7 +119,8 @@ class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
     def plot_subplot(self, i_subplot: int, array: NamedDimArray, x_array: NamedDimArray):
         linedict_array = self.dict_of_slices(array, self.linecolor_dim)
         linedict_x_array = self.dict_of_slices(x_array, self.linecolor_dim)
-        for i_line, (array_line, x_array_line, name_line) in enumerate(zip(linedict_array.values(), linedict_x_array.values(), linedict_array.keys())):
+        for i_line, (array_line, x_array_line, name_line) in enumerate(
+                zip(linedict_array.values(), linedict_x_array.values(), linedict_array.keys())):
             label = self.line_label if self.line_label is not None else self.display_name(name_line)
             assert array_line.dims.names == (self.intra_line_dim,), (
                 "All dimensions of array must be given exactly once. Either as x_dim / subplot_dim / linecolor_dim, or in "
@@ -137,10 +139,12 @@ class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
             self.set_ylabel(i_subplot, ylabel)
 
     def index2d(self, i_subplot):
-        return i_subplot // self.nx, i_subplot % self.nx
+        row = i_subplot // self.ny
+        column = i_subplot % self.ny
+        return row, column
 
     @abstractmethod
-    def save(self, save_path: str=None):
+    def save(self, save_path: str = None):
         raise NotImplementedError
 
     @abstractmethod
@@ -180,12 +184,10 @@ class ArrayPlotter(CustomNameDisplayer, PydanticBaseModel, ABC):
         raise NotImplementedError
 
 
-
 class PyplotArrayPlotter(ArrayPlotter):
-
     fig: plt.Figure = None
 
-    def save(self, save_path: str=None):
+    def save(self, save_path: str = None):
         self.fig.savefig(save_path)
 
     def show(self):
@@ -223,10 +225,9 @@ class PyplotArrayPlotter(ArrayPlotter):
 
 
 class PlotlyArrayPlotter(ArrayPlotter):
-
     fig: go.Figure = None
 
-    def save(self, save_path: str=None):
+    def save(self, save_path: str = None):
         self.fig.write_image(save_path)
 
     def show(self):
@@ -246,7 +247,7 @@ class PlotlyArrayPlotter(ArrayPlotter):
         grid_ref = self.fig._validate_get_grid_ref()
         nrows = len(grid_ref)
         ncols = len(grid_ref[0])
-        return ncols, nrows
+        return nrows, ncols
 
     def row(self, i_subplot):
         return self.index2d(i_subplot)[0] + 1
@@ -258,10 +259,10 @@ class PlotlyArrayPlotter(ArrayPlotter):
         self.fig.update_xaxes(title_text=label, row=self.row(i_subplot), col=self.col(i_subplot))
 
     def set_ylabel(self, i_subplot, label):
-        self.fig.update_yaxes(title_text=label, row=self.row(i_subplot), col=self.row(i_subplot))
+        self.fig.update_yaxes(title_text=label, row=self.row(i_subplot), col=self.col(i_subplot))
 
     def set_subplot_title(self, index, title):
-        pass # already set in make_subplots
+        pass  # already set in make_subplots
 
     def add_line(self, i_subplot, x, y, label, i_line):
         i_color = i_line + self.n_previous_lines
@@ -272,7 +273,7 @@ class PlotlyArrayPlotter(ArrayPlotter):
                 y=y,
                 name=label,
                 line=dict(color=color),
-                showlegend=i_subplot==0),
+                showlegend=i_subplot == 0),
             row=self.row(i_subplot),
             col=self.col(i_subplot))
 
