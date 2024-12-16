@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.16.5
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -111,6 +111,7 @@ flows = make_empty_flows(processes=processes, flow_definitions=flow_definitions,
 # We define a class with our system equations in the compute method. Afterwards we create an instance of this class, using the input data defined above. The class (system equations) can then easily be reused with different input data.
 #
 # We just need to define the compute method with our system equations, as all the other things we need are inherited from the MFASystem class.
+
 
 # %%
 class SimpleMFA(MFASystem):
