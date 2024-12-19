@@ -26,7 +26,7 @@ from IPython.display import Image, display
 p = "docs/examples/pictures" if os.getcwd()[-5:] == "sodym" else "pictures"
 display(Image(f"{p}/MFAExample1.png"))
 
-#%% [markdown]
+# %% [markdown]
 #
 # The model equations are as follows:
 # * $a(t) = D(t)$ (exogenous input flow)

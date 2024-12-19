@@ -24,17 +24,17 @@
 # To answer that question the system definition is chosen as in the figure below.
 #
 
-#%%
+# %%
 import os
 
 if os.getcwd()[-5:] == "sodym":
     os.chdir("docs/examples")
-#%%
+# %%
 from IPython.display import Image, display
 
 display(Image("pictures/SimpleProcess.png"))
 
-#%% [markdown]
+# %% [markdown]
 # Stocks S and outflow O are calculated from apparent final consumption i(t), which is obtained from statistics, cf. DOI 10.1016/j.resconrec.2012.11.008
 # The model equations are as follows:
 #

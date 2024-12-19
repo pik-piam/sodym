@@ -36,17 +36,17 @@
 # The system definition of the model is given in the figure below. The data availability limits the temporal scope to 2017. The figure also shows the aspects of the different system variables. The total registration of vehicles, for example, is broken down into individual materials, whereas the flow of deregistered vehicles is broken down into regions, age-cohorts, and materials.
 #
 
-#%%
+# %%
 import os
 
 if os.getcwd()[-5:] == "sodym":
     os.chdir("docs/examples")
-#%%
+# %%
 from IPython.display import Image, display
 
 display(Image("pictures/System_example5.png"))
 
-#%% [markdown]
+# %% [markdown]
 # The model equations are as follows:
 #
 # 1) inflow-driven dynamic stock model, where $F_{1-2}$ is the historic inflow, $Sf$ is the survival function of the age-cohort (1-sum(pdf of discard)), and $S_2$ is the stock:
