@@ -6,6 +6,7 @@ import pandas as pd
 
 from .mfa_definition import DimensionDefinition
 
+
 class Dimension(PydanticBaseModel):
     """One of multiple dimensions over which MFA arrays are defined.
 
@@ -71,7 +72,9 @@ class Dimension(PydanticBaseModel):
         if data[0] == definition.name:
             data = data[1:]
         data = [definition.dtype(item) for item in data]
-        return cls(name=definition.name, letter=definition.letter, items=data, dtype=definition.dtype)
+        return cls(
+            name=definition.name, letter=definition.letter, items=data, dtype=definition.dtype
+        )
 
     @property
     def len(self) -> int:

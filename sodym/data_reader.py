@@ -81,6 +81,7 @@ class ExcelDimensionReader(DimensionReader):
         dimension_sheets (dict): {dimension_name: sheet_name, ...}
         **read_excel_kwargs: Additional keyword arguments passed to pandas.read_excel. The default is {"header": None}. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended excel file format is preferred.
     """
+
     def __init__(
         self,
         dimension_files: dict = None,
@@ -108,7 +109,6 @@ class ExcelDimensionReader(DimensionReader):
 
 
 class ParameterReader(ABC):
-
     @abstractmethod
     def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         pass
@@ -123,6 +123,7 @@ class CSVParameterReader(ParameterReader):
         parameter_files (dict): {parameter_name: file_path, ...}
         **read_csv_kwargs: Additional keyword arguments passed to pandas.read_csv. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended csv file format is preferred
     """
+
     def __init__(
         self,
         parameter_files: dict = None,
@@ -147,6 +148,7 @@ class ExcelParameterReader(ParameterReader):
         parameter_sheets (dict): {parameter_name: sheet_name, ...}
         **read_excel_kwargs: Additional keyword arguments passed to pandas.read_excel. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended excel file format is preferred
     """
+
     def __init__(
         self,
         parameter_files: dict = None,
@@ -170,7 +172,6 @@ class ExcelParameterReader(ParameterReader):
 
 
 class CompoundDataReader(DataReader):
-
     def __init__(
         self,
         dimension_reader: DimensionReader,

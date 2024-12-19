@@ -11,7 +11,14 @@ from .stocks import Stock
 from .process_helper import make_processes
 from .stock_helper import make_empty_stocks
 from .flow_helper import make_empty_flows
-from .data_reader import DataReader, CompoundDataReader, CSVDimensionReader, CSVParameterReader, ExcelDimensionReader, ExcelParameterReader
+from .data_reader import (
+    DataReader,
+    CompoundDataReader,
+    CSVDimensionReader,
+    CSVParameterReader,
+    ExcelDimensionReader,
+    ExcelParameterReader,
+)
 
 
 class MFASystem(PydanticBaseModel):
@@ -41,7 +48,7 @@ class MFASystem(PydanticBaseModel):
     Dimensions are managed with the :py:class:`sodym.dimensions.Dimension` and :py:class:`sodym.dimensions.DimensionSet`.
     """
 
-    model_config = ConfigDict(protected_namespaces=(), extra='allow')
+    model_config = ConfigDict(protected_namespaces=(), extra="allow")
 
     dims: DimensionSet
     parameters: Dict[str, Parameter]
@@ -74,7 +81,7 @@ class MFASystem(PydanticBaseModel):
         definition: MFADefinition,
         dimension_files: dict,
         parameter_files: dict,
-        ):
+    ):
         """Define and set up the MFA system and load all required data from CSV files.
         Initialises stocks and flows with all zero values.
 
@@ -89,14 +96,14 @@ class MFASystem(PydanticBaseModel):
 
         dimension_reader = CSVDimensionReader(
             dimension_files=dimension_files,
-            )
+        )
         parameter_reader = CSVParameterReader(
             parameter_files=parameter_files,
-            )
+        )
         data_reader = CompoundDataReader(
             dimension_reader=dimension_reader,
             parameter_reader=parameter_reader,
-            )
+        )
         return cls.from_data_reader(definition, data_reader)
 
     @classmethod
@@ -107,7 +114,7 @@ class MFASystem(PydanticBaseModel):
         parameter_files: dict,
         dimension_sheets: dict = None,
         parameter_sheets: dict = None,
-        ):
+    ):
         """Define and set up the MFA system and load all required data from Excel files.
         Initialises stocks and flows with all zero values.
         Builds a CompoundDataReader from Excel readers, and calls the from_data_reader class method.
@@ -133,14 +140,14 @@ class MFASystem(PydanticBaseModel):
         data_reader = CompoundDataReader(
             dimension_reader=dimension_reader,
             parameter_reader=parameter_reader,
-            )
+        )
         return cls.from_data_reader(definition, data_reader)
 
     def compute(self):
         """Perform all computations for the MFA system."""
         raise NotImplementedError(
             "The compute method must be implemented in a subclass of MFASystem if it is to be used."
-            )
+        )
 
     def get_new_array(self, **kwargs) -> NamedDimArray:
         dims = self.dims.get_subset(kwargs["dim_letters"]) if "dim_letters" in kwargs else self.dims

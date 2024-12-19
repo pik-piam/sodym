@@ -6,6 +6,7 @@ from pydantic import BaseModel as PydanticBaseModel
 import itertools
 
 from .dimensions import Dimension
+
 if TYPE_CHECKING:
     from .named_dim_arrays import NamedDimArray
 
@@ -94,7 +95,8 @@ class DataFrameToNDADataConverter:
                 f"dimension {dim.name} if the first row counts as an item, but columns "
                 f"{self.dim_columns} are already recognized as dimensions first row as name."
                 f" Please change the item names of the affected dimension, or use a"
-                f" different method to read data.")
+                f" different method to read data."
+            )
         # prepend a row to df with all the column names
         self.df = pd.concat([pd.DataFrame([self.df.columns], columns=self.df.columns), self.df])
         # rename columns to range from 0 to n, save original name
@@ -198,7 +200,8 @@ class DataFrameToNDADataConverter:
         # sort rows
         self.df = self.df.sort_values(
             by=list(self.nda.dims.names),
-            key=lambda x: x.map(lambda y: self.nda.dims[x.name].items.index(y)))
+            key=lambda x: x.map(lambda y: self.nda.dims[x.name].items.index(y)),
+        )
 
     def _check_data_complete(self):
         # Generate expected index tuples from NamedDimArray dimensions
@@ -208,7 +211,9 @@ class DataFrameToNDADataConverter:
             expected_index_tuples = set(itertools.product(*(dim.items for dim in self.nda.dims)))
 
         # Generate actual index tuples from DataFrame columns
-        actual_index_tuples = set(self.df.drop(columns=self.format.value_column).itertuples(index=False, name=None))
+        actual_index_tuples = set(
+            self.df.drop(columns=self.format.value_column).itertuples(index=False, name=None)
+        )
 
         # Compare the two sets
         if expected_index_tuples != actual_index_tuples:

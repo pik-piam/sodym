@@ -1,7 +1,12 @@
 import numpy as np
 import pytest
 
-from sodym.data_reader import CSVDimensionReader, ExcelDimensionReader, CSVParameterReader, ExcelParameterReader
+from sodym.data_reader import (
+    CSVDimensionReader,
+    ExcelDimensionReader,
+    CSVParameterReader,
+    ExcelParameterReader,
+)
 from sodym.mfa_definition import DimensionDefinition, ParameterDefinition, MFADefinition
 from sodym.mfa_system import MFASystem
 
@@ -32,7 +37,9 @@ parameter_definitions = [
     ParameterDefinition(name="p5", dim_letters=["t", "r", "a"]),
     ParameterDefinition(name="p6", dim_letters=["t", "r", "a"]),
 ]
-csv_parameter_files = {a.name: "tests/tests_data/parameter_" + a.name + ".csv" for a in parameter_definitions}
+csv_parameter_files = {
+    a.name: "tests/tests_data/parameter_" + a.name + ".csv" for a in parameter_definitions
+}
 excel_parameter_file = "tests/tests_data/parameters.xlsx"
 excel_parameter_files = {a.name: excel_parameter_file for a in parameter_definitions}
 parameter_sheet_names = {a.name: a.name for a in parameter_definitions}
@@ -60,7 +67,7 @@ def test_valid_parameter_reader():
     excel_reader = ExcelParameterReader(excel_parameter_files, parameter_sheet_names)
 
     for reader in [csv_reader, excel_reader]:
-    # for reader in [excel_reader]:
+        # for reader in [excel_reader]:
         parameters = reader.read_parameters(parameter_definitions, dims)
         for pn, p in parameters.items():
             if pn in ["p1", "p2", "p3", "p4"]:
@@ -84,7 +91,9 @@ def test_wrong_parameter_reader():
         ParameterDefinition(name="e5", dim_letters=["t", "a"]),
     ]
 
-    csv_parameter_files = {a.name: "tests/tests_data/parameter_" + a.name + ".csv" for a in parameter_definitions}
+    csv_parameter_files = {
+        a.name: "tests/tests_data/parameter_" + a.name + ".csv" for a in parameter_definitions
+    }
     excel_parameter_file = "tests/tests_data/parameters.xlsx"
     excel_parameter_files = {a.name: excel_parameter_file for a in parameter_definitions}
     sheet_names = {a.name: a.name for a in parameter_definitions}
@@ -111,6 +120,7 @@ def test_build_mfa_system():
         flows=[],
         parameters=parameter_definitions,
     )
+
     class MinimalMFASystem(MFASystem):
         def compute(self):
             pass
@@ -119,7 +129,7 @@ def test_build_mfa_system():
         definition,
         csv_dimension_files,
         csv_parameter_files,
-        )
+    )
 
     mfa = MinimalMFASystem.from_excel(
         definition,
@@ -127,4 +137,4 @@ def test_build_mfa_system():
         excel_parameter_files,
         dimension_sheets=dimension_sheet_names,
         parameter_sheets=parameter_sheet_names,
-        )
+    )
