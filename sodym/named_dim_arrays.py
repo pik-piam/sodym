@@ -50,7 +50,8 @@ class NamedDimArray(PydanticBaseModel):
     foo[keys] = bar or foo = bar[keys]. For details on the allowed values of 'keys', see the docstring of the
     SubArrayHandler class.
 
-    The dimensions of a NamedDimArray stored as a :py:class:`sodym.dimensions.DimensionSet` object in the 'dims' attribute."""
+    The dimensions of a NamedDimArray stored as a :py:class:`sodym.dimensions.DimensionSet` object in the 'dims' attribute.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
