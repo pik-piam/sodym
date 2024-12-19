@@ -6,6 +6,9 @@ plugins:
       execute: true
   - include-markdown
 
+theme:
+  name: readthedocs
+
 nav:
   - Documentation:
     - code_documentation/mfa_system.md

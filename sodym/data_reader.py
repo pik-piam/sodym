@@ -1,8 +1,4 @@
-"""Home to some data readers.
-
-Generally the idea would be to build an own data reader based on the template here,
-that reads the specific datasets required by your model.
-"""
+"""Home to some data readers."""
 
 from abc import ABC, abstractmethod
 import pandas as pd

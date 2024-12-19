@@ -117,12 +117,12 @@ class LittleDataReader(DataReader):
             items=data,
         )
 
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        if parameter == "tau":
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        if parameter_name == "tau":
             data = np.array(list(country_lifetimes.values()))
-        elif parameter == "sigma":
+        elif parameter_name == "sigma":
             data = np.array([0.3 * lifetime for lifetime in country_lifetimes.values()])
-        elif parameter == "inflow":
+        elif parameter_name == "inflow":
             multiindex = self.steel_consumption.set_index(["t", "r"])
             data = multiindex.unstack().values[:, :]
         return Parameter(dims=dims, values=data)

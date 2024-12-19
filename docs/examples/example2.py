@@ -218,11 +218,11 @@ class CustomDataReader(DataReader):
             items=data,
         )
 
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         if dims.letters == ("t",):
-            data = self.time_parameters[parameter].values
+            data = self.time_parameters[parameter_name].values
         elif dims.letters == ("e",):
-            data = self.element_parameters[parameter].values
+            data = self.element_parameters[parameter_name].values
         return Parameter(dims=dims, values=data)
 
 

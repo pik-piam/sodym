@@ -220,15 +220,15 @@ class CustomDataReader(DataReader):
             items=data,
         )
 
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         data = pd.read_excel(
-            join(self.data_directory, (parameter.replace(" ", "_") + ".xlsx")), "Data"
+            join(self.data_directory, (parameter_name.replace(" ", "_") + ".xlsx")), "Data"
         )
         data = data.fillna(0)
         if "r" in dims.letters:  # remove unwanted regions
             data = data[data["region"].isin(dims["r"].items)]
 
-        if parameter == "vehicle new registration":
+        if parameter_name == "vehicle new registration":
             return self.vehicle_new_registration(data, dims)
 
         data.columns = [x.lower() for x in data.columns]
