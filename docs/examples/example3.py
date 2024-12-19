@@ -23,8 +23,18 @@
 # * What is the ration between steel in EoL (end-of-life) products to final steel consumption in selected countries?
 # To answer that question the system definition is chosen as in the figure below.
 #
-# <img src="pictures/SimpleProcess.png" width="354" height="290" alt="Simple MFA system">
-#
+
+# %%
+import os
+
+if os.getcwd()[-5:] == "sodym":
+    os.chdir("docs/examples")
+# %%
+from IPython.display import Image, display
+
+display(Image("pictures/SimpleProcess.png"))
+
+# %% [markdown]
 # Stocks S and outflow O are calculated from apparent final consumption i(t), which is obtained from statistics, cf. DOI 10.1016/j.resconrec.2012.11.008
 # The model equations are as follows:
 #
@@ -107,12 +117,12 @@ class LittleDataReader(DataReader):
             items=data,
         )
 
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
-        if parameter == "tau":
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        if parameter_name == "tau":
             data = np.array(list(country_lifetimes.values()))
-        elif parameter == "sigma":
+        elif parameter_name == "sigma":
             data = np.array([0.3 * lifetime for lifetime in country_lifetimes.values()])
-        elif parameter == "inflow":
+        elif parameter_name == "inflow":
             multiindex = self.steel_consumption.set_index(["t", "r"])
             data = multiindex.unstack().values[:, :]
         return Parameter(dims=dims, values=data)
