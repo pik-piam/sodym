@@ -202,7 +202,10 @@ class DataFrameToNDADataConverter:
 
     def _check_data_complete(self):
         # Generate expected index tuples from NamedDimArray dimensions
-        expected_index_tuples = set(itertools.product(*(dim.items for dim in self.nda.dims)))
+        if self.nda.dims.ndim == 0:
+            expected_index_tuples = set()
+        else:
+            expected_index_tuples = set(itertools.product(*(dim.items for dim in self.nda.dims)))
 
         # Generate actual index tuples from DataFrame columns
         actual_index_tuples = set(self.df.drop(columns=self.format.value_column).itertuples(index=False, name=None))

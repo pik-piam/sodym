@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, model_validator
-from typing import Optional
+from typing import Optional, Union
 
 from .dimensions import DimensionSet, Dimension
 from .df_to_nda import DataFrameToNDADataConverter
@@ -55,18 +55,27 @@ class NamedDimArray(PydanticBaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     dims: DimensionSet
-    values: Optional[np.ndarray] = None
+    values: Optional[Union[np.ndarray, np.generic]] = None
     name: Optional[str] = "unnamed"
 
     @model_validator(mode="after")
-    def fill_values(self):
+    def validate_values(self):
         if self.values is None:
             self.values = np.zeros(self.dims.shape())
-        elif self.values.shape != self.dims.shape():
+        return self
+
+    def check_value_format(self):
+        if not isinstance(self.values, (np.ndarray, np.generic)):
+            raise ValueError("Values must be a numpy array or numpy generic.")
+        if self.dims.ndim > 0 and not isinstance(self.values, np.ndarray):
+            raise ValueError("Values must be a numpy array, except for 0-dimensional arrays.")
+        elif self.dims.ndim == 0 and isinstance(self.values, np.generic):
+            self.values = np.array(self.values)
+
+        if self.values.shape != self.dims.shape():
             raise ValueError(
                 "Values passed to {self.__cls__.__name__} must have the same shape as the DimensionSet."
             )
-        return self
 
     @classmethod
     def from_dims_superset(cls, dims_superset: DimensionSet, dim_letters: tuple = None, **kwargs):
@@ -95,9 +104,8 @@ class NamedDimArray(PydanticBaseModel):
         return self.dims.shape()
 
     def set_values(self, values: np.ndarray):
-        assert isinstance(values, np.ndarray), "Values must be a numpy array."
-        assert values.shape == self.shape, "Values must have the same shape as the DimensionSet."
         self.values = values
+        self.check_value_format()
 
     def sum_values(self):
         return np.sum(self.values)

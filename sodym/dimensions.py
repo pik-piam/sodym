@@ -150,6 +150,10 @@ class DimensionSet(PydanticBaseModel):
         keys = keys if keys else self.letters
         return tuple(self.size(key) for key in keys)
 
+    @property
+    def ndim(self):
+        return len(self.dim_list)
+
     def get_subset(self, dims: tuple = None) -> "DimensionSet":
         """Selects :py:class:`Dimension` objects from the object attribute dim_list,
         according to the dims passed, which can be either letters or names.

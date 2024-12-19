@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import numpy as np
 import pandas as pd
 from typing import List, Dict
 import yaml
@@ -20,10 +19,6 @@ class DataReader:
 
     @abstractmethod
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
-        pass
-
-    def read_scalar_data(self, parameters: List[str]) -> dict:
-        """Optional addition method if additional scalar parameters are required."""
         pass
 
     @abstractmethod
@@ -174,97 +169,18 @@ class ExcelParameterReader(ParameterReader):
         return Parameter.from_df(dims=dims, name=parameter_name, df=data)
 
 
-class ScalarDataReader(ABC):
-    def read_scalar_data(self, parameters: List[str], **read_scalar_kwargs) -> dict:
-        """Optional addition method if additional scalar parameters are required."""
-        raise NotImplementedError("No scalar data reader specified.")
-
-
-class EmptyScalarDataReader(ScalarDataReader):
-
-    def read_scalar_data(self, parameters: List[str]):
-        if parameters:
-            raise ValueError("List of scalar parameters is not empty, but no real reader for scalar data is specified.")
-        return {}
-
-
-class CheckedScalarDataReader(ScalarDataReader):
-    """Parent class for scalar data readers that ensures that the read data and requested parameters
-    match.
-    """
-
-    def __init__(self, scalar_file: str = None, **read_scalar_kwargs):
-        self.scalar_file = scalar_file
-        self.read_scalar_kwargs = read_scalar_kwargs
-
-    def read_scalar_data(self, parameters: List[str]):
-        if not parameters:
-            return {}
-        if self.scalar_file is None:
-            raise ValueError("No scalar data file specified.")
-        data = self._get_dict()
-        if not set(parameters) == set(data.keys()):
-            raise ValueError(
-                f"Parameter names in yaml file do not match requested parameters. Unexpected parameters: {set(data.keys()) - set(parameters)}; Missing parameters: {set(parameters) - set(data.keys())}."
-            )
-        return data
-
-    def add_pd_reader_defaults(self):
-        if "header" not in self.read_scalar_kwargs:
-            self.read_scalar_kwargs["header"] = None
-        if "index_col" not in self.read_scalar_kwargs:
-            self.read_scalar_kwargs["index_col"] = 0
-
-    def _get_dict(self) -> dict:
-        raise NotImplementedError(f"Method not implemented. Choose a subclass of {self.__class__.__name__}.")
-
-
-class YamlScalarDataReader(CheckedScalarDataReader):
-
-    def _get_dict(self) -> dict:
-        with open(self.scalar_file, "r") as stream:
-            return yaml.safe_load(stream)
-
-
-class CSVScalarDataReader(CheckedScalarDataReader):
-
-    def _get_dict(self) -> dict:
-        self.add_pd_reader_defaults()
-        df = pd.read_csv(self.scalar_file, **self.read_scalar_kwargs)
-        dict = df.to_dict()[df.columns[0]]
-        return dict
-
-
-class ExcelScalarDataReader(CheckedScalarDataReader):
-
-    def __init__(self, scalar_file: str = None, scalar_sheet: str = None, **read_scalar_kwargs):
-        self.sheet_name = scalar_sheet
-        super().__init__(scalar_file, **read_scalar_kwargs)
-
-    def _get_dict(self) -> dict:
-        self.add_pd_reader_defaults()
-        df= pd.read_excel(self.scalar_file, sheet_name=self.sheet_name, **self.read_scalar_kwargs)
-        dict = df.to_dict()[df.columns[0]]
-        return dict
-
-
 class CompoundDataReader(DataReader):
 
     def __init__(
         self,
         dimension_reader: DimensionReader,
         parameter_reader: ParameterReader,
-        scalar_data_reader: ScalarDataReader = EmptyScalarDataReader(),
     ):
         self.dimension_reader = dimension_reader
         self.parameter_reader = parameter_reader
-        self.scalar_data_reader = scalar_data_reader
 
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
         return self.dimension_reader.read_dimension(dimension_definition)
 
     def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         return self.parameter_reader.read_parameter_values(parameter_name, dims)
-
-    def read_scalar_data(self, parameters: List[str]) -> dict:
-        return self.scalar_data_reader.read_scalar_data(parameters)

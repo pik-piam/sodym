@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sodym.data_reader import CSVDimensionReader, ExcelDimensionReader, CSVParameterReader, ExcelParameterReader, CSVScalarDataReader, ExcelScalarDataReader, YamlScalarDataReader
+from sodym.data_reader import CSVDimensionReader, ExcelDimensionReader, CSVParameterReader, ExcelParameterReader
 from sodym.mfa_definition import DimensionDefinition, ParameterDefinition, MFADefinition
 from sodym.mfa_system import MFASystem
 
@@ -102,114 +102,29 @@ def test_wrong_parameter_reader():
     return
 
 
-def test_scalar_reader():
-
-    test_prms = {
-        "v1": ["a"],
-        "v2": ["a", "b", "c"],
-    }
-    prm_values = {
-        "v1": [0.5],
-        "v2": [0.5, 0.6, 0.7],
-    }
-    base_name = "tests/tests_data/scalars"
-
-    for test_name, prm_names in test_prms.items():
-
-        readers = [
-            YamlScalarDataReader(scalar_file = f"{base_name}_{test_name}.yml"),
-            CSVScalarDataReader(scalar_file = f"{base_name}_{test_name}.csv"),
-            ExcelScalarDataReader(scalar_file = f"{base_name}.xlsx", scalar_sheet = test_name)
-        ]
-
-        for reader in readers:
-            data = reader.read_scalar_data(prm_names)
-            for i_prm, prm in enumerate(prm_names):
-                assert data[prm] == prm_values[test_name][i_prm]
-
-
 def test_build_mfa_system():
 
-    definition_ws = MFADefinition(
+    definition = MFADefinition(
         dimensions=dimension_definitions,
         processes=[],
         stocks=[],
         flows=[],
         parameters=parameter_definitions,
-        scalar_parameters=["a", "b", "c"],
-    )
-    definition_ns = MFADefinition(
-        dimensions=dimension_definitions,
-        processes=[],
-        stocks=[],
-        flows=[],
-        parameters=parameter_definitions,
-        scalar_parameters=None,
     )
     class MinimalMFASystem(MFASystem):
         def compute(self):
             pass
 
     mfa = MinimalMFASystem.from_csv(
-        definition_ws,
-        csv_dimension_files,
-        csv_parameter_files,
-        scalar_file = "tests/tests_data/scalars_v2.csv",
-        )
-    assert mfa.scalar_parameters["a"] == 0.5
-    mfa = MinimalMFASystem.from_csv(
-        definition_ns,
+        definition,
         csv_dimension_files,
         csv_parameter_files,
         )
 
     mfa = MinimalMFASystem.from_excel(
-        definition_ws,
-        excel_dimension_files,
-        excel_parameter_files,
-        dimension_sheets=dimension_sheet_names,
-        parameter_sheets=parameter_sheet_names,
-        scalar_file = "tests/tests_data/scalars.xlsx",
-        scalar_sheet="v2",
-        )
-    assert mfa.scalar_parameters["b"] == 0.6
-    mfa = MinimalMFASystem.from_excel(
-        definition_ns,
+        definition,
         excel_dimension_files,
         excel_parameter_files,
         dimension_sheets=dimension_sheet_names,
         parameter_sheets=parameter_sheet_names,
         )
-
-    with pytest.raises(ValueError):
-        # no scalars in definition, scalar file specified
-        mfa = MinimalMFASystem.from_csv(
-            definition_ns,
-            csv_dimension_files,
-            csv_parameter_files,
-            scalar_file = "tests/tests_data/scalars_v2.csv",
-            )
-        # scalars in definition, no scalar file specified
-        mfa = MinimalMFASystem.from_csv(
-            definition_ws,
-            csv_dimension_files,
-            csv_parameter_files,
-            )
-        # same for excel
-        mfa = MinimalMFASystem.from_excel(
-            definition_ns,
-            excel_dimension_files,
-            excel_parameter_files,
-            dimension_sheets=dimension_sheet_names,
-            parameter_sheets=parameter_sheet_names,
-            scalar_file = "tests/tests_data/scalars.xlsx",
-            scalar_sheet="v2",
-            )
-        mfa = MinimalMFASystem.from_excel(
-            definition_ws,
-            excel_dimension_files,
-            excel_parameter_files,
-            dimension_sheets=dimension_sheet_names,
-            parameter_sheets=parameter_sheet_names,
-            )
-
