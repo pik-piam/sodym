@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.16.5
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -159,6 +159,7 @@ stock_definitions = [
 #
 # We just need to define the compute method with our system equations, as all the other things we need are inherited from the MFASystem class.  The flow names are generated from the processes each flow connects, in this case with the naming function `process_names_with_arrow`, which is passed to the flow initialization below.
 
+
 # %%
 class SimpleMFA(MFASystem):
     def compute(self):
@@ -198,6 +199,7 @@ class SimpleMFA(MFASystem):
 # Even though this is only a small system, we will load the data from excel files, as an example for more complex systems with larger datasets. To do this data loading, we define a DataReader class. Such a class can be reused with different datasets of the same format by passing attributes, e.g. data paths, in the init function.
 #
 # The methods `read_dimensions` and `read_parameters` are already defined in the parent DataReader class, and loop over the methods `read_dimension` and `read_parameter_values` that we specify for our usecase here.
+
 
 # %%
 class CustomDataReader(DataReader):

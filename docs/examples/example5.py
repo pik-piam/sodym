@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.16.5
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -130,6 +130,7 @@ stock_definitions = [
     )
 ]
 
+
 # %%
 class VehicleMFA(MFASystem):
     """We just need to define the compute method with our system equations,
@@ -183,6 +184,7 @@ class VehicleMFA(MFASystem):
 # ## 3. Define our data reader
 # Now that we have defined the MFA system and know what data we need, we can load the data.
 # To do the data loading, we define a DataReader class. Such a class can be reused with different datasets of the same format by passing attributes, e.g. the directory where the data is stored, in the init function. In this example, we will also build upon this data reader in a following step.
+
 
 # %%
 class CustomDataReader(DataReader):
@@ -279,6 +281,7 @@ stock_diff
 # In addition to this and to answer our research questions, we will extend the timeseries out to 2050, with no more inflow afer 2017.
 #
 # To make these changes in the model dimensions and parameters, we build on the `CustomDataReader` class defined above, extending the time dimension to earlier years, as well as extending the data for the `vehicle_new_registration` parameter, which is our only time-dependent parameter.
+
 
 # %%
 class AnotherCustomDataReader(CustomDataReader):

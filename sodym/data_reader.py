@@ -5,7 +5,6 @@ that reads the specific datasets required by your model.
 """
 
 from abc import ABC, abstractmethod
-import numpy as np
 import pandas as pd
 from typing import List, Dict
 import yaml
@@ -15,7 +14,7 @@ from .mfa_definition import DimensionDefinition, ParameterDefinition
 from .dimensions import DimensionSet, Dimension
 
 
-class DataReader(ABC):
+class DataReader:
     """Template for creating a data reader, showing required methods and data formats needed for
     use in the MFASystem model.
     """
@@ -31,12 +30,8 @@ class DataReader(ABC):
         corresponding to the dimension definition."""
         pass
 
-    def read_scalar_data(self, parameters: List[str]) -> dict:
-        """Optional addition method if additional scalar parameters are required."""
-        pass
-
     @abstractmethod
-    def read_parameter_values(self, parameter: str, dims: DimensionSet) -> Parameter:
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
         """Required method to read data for a particular parameter."""
         pass
 
@@ -45,73 +40,159 @@ class DataReader(ABC):
     ) -> Dict[str, Parameter]:
         """Method to read data for a list of parameters, by looping over `read_parameter_values`."""
         parameters = {}
-        for parameter in parameter_definitions:
-            dim_subset = dims.get_subset(parameter.dim_letters)
-            parameters[parameter.name] = self.read_parameter_values(
-                parameter=parameter.name,
+        for parameter_definition in parameter_definitions:
+            dim_subset = dims.get_subset(parameter_definition.dim_letters)
+            parameters[parameter_definition.name] = self.read_parameter_values(
+                parameter_name=parameter_definition.name,
                 dims=dim_subset,
             )
         return parameters
 
 
-class ExampleDataReader(DataReader):
-    """Example data reader, that reads .csv files for parameters and dimensions, and a yaml file
-    for scalar parameter data. File locations need to be specified on initialization.
+class DimensionReader(ABC):
 
-    **Example**
+    read_dimensions = DataReader.read_dimensions
 
-        >>> from sodym import ExampleDataReader, DimensionDefinition
-        >>> time_definition = DimensionDefinition(name='time', letter='t', dtype=int)
-        >>> dimension_datasets = {
-        >>>     'time': 'path/to/file_with_list_of_times.csv',
-        >>>     'place': 'path/to/file_with_list_of_places.csv',
-        >>>     ...
-        >>> }
-        >>> data_reader = ExampleDataReader(dimension_datasets=dimension_datasets, ...)
-        >>> time_dimension = data_reader.read_dimension(definition=time_definition)
+    @abstractmethod
+    def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+        pass
 
+
+class CSVDimensionReader(DimensionReader):
+    """Expects a single row or single columns csv file with no header containing the dimension items.
+
+    Args:
+        dimension_files (dict): {dimension_name: file_path, ...}
+        **read_csv_kwargs: Additional keyword arguments passed to pandas.read_csv. The default is {"header": None}. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended csv file format is preferred.
     """
 
-    def __init__(self, scalar_data_yaml: str, parameter_datasets: dict, dimension_datasets: dict):
-        self.scalar_data_yaml = scalar_data_yaml  # file_path
-        self.parameter_datasets = parameter_datasets  # {parameter_name: file_path, ...}
-        self.dimension_datasets = dimension_datasets  # {dimension_name: file_path, ...}
-
-    def read_scalar_data(self, parameters: List[str]):
-        with open(self.scalar_data_yaml, "r") as stream:
-            data = yaml.safe_load(stream)
-        return {name: data[name] for name in data if name in parameters}
-
-    def read_parameter_values(self, parameter: str, dims):
-        datasets_path = self.parameter_datasets[parameter]
-        data = pd.read_csv(datasets_path)
-        values = self.get_np_from_df(data, dims.names)
-        return Parameter(dims=dims, values=values)
+    def __init__(
+        self,
+        dimension_files: dict = None,
+        **read_csv_kwargs,
+    ):
+        self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
+        self.read_csv_kwargs = read_csv_kwargs
 
     def read_dimension(self, definition: DimensionDefinition):
-        path = self.dimension_datasets[definition.name]
-        data = np.loadtxt(path, dtype=definition.dtype, delimiter=";").tolist()
-        # catch size one lists, which are transformed to scalar by np.ndarray.tolist()
-        data = data if isinstance(data, list) else [data]
-        return Dimension(name=definition.name, letter=definition.letter, items=data)
+        if self.dimension_files is None:
+            raise ValueError("No dimension files specified.")
+        path = self.dimension_files[definition.name]
+        if "header" not in self.read_csv_kwargs:
+            self.read_csv_kwargs["header"] = None
+        df = pd.read_csv(path, **self.read_csv_kwargs)
+        return Dimension.from_df(df, definition)
 
-    @staticmethod
-    def get_np_from_df(df_in: pd.DataFrame, dims: tuple):
-        df = df_in.copy()
-        dim_columns = [d for d in dims if d in df.columns]
-        value_cols = np.setdiff1d(df.columns, dim_columns)
-        df.set_index(dim_columns, inplace=True)
-        df = df.sort_values(by=dim_columns)
 
-        # check for sparsity
-        if df.index.has_duplicates:
-            raise Exception("Double entry in df!")
-        shape_out = df.index.shape if len(dim_columns) == 1 else df.index.levshape
-        if np.prod(shape_out) != df.index.size:
-            raise Exception("Dataframe is missing values!")
+class ExcelDimensionReader(DimensionReader):
+    """Expects a single row or single columns excel sheet with no header containing the dimension items.
 
-        if np.any(value_cols != "value"):
-            out = {vc: df[vc].values.reshape(shape_out) for vc in value_cols}
+    Args:
+        dimension_files (dict): {dimension_name: file_path, ...}
+        dimension_sheets (dict): {dimension_name: sheet_name, ...}
+        **read_excel_kwargs: Additional keyword arguments passed to pandas.read_excel. The default is {"header": None}. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended excel file format is preferred.
+    """
+
+    def __init__(
+        self,
+        dimension_files: dict = None,
+        dimension_sheets: dict = None,
+        **read_excel_kwargs,
+    ):
+        self.dimension_files = dimension_files  # {dimension_name: file_path, ...}
+        self.dimension_sheets = dimension_sheets
+        self.read_excel_kwargs = read_excel_kwargs
+
+    def read_dimension(self, definition: DimensionDefinition):
+        if self.dimension_files is None:
+            raise ValueError("No dimension files specified.")
+        path = self.dimension_files[definition.name]
+        # load data from excel
+        if self.dimension_sheets is None:
+            sheet_name = None
         else:
-            out = df["value"].values.reshape(shape_out)
-        return out
+            sheet_name = self.dimension_sheets[definition.name]
+        # default for header is None
+        if "header" not in self.read_excel_kwargs:
+            self.read_excel_kwargs["header"] = None
+        df = pd.read_excel(path, sheet_name=sheet_name, **self.read_excel_kwargs)
+        return Dimension.from_df(df, definition)
+
+
+class ParameterReader(ABC):
+    @abstractmethod
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        pass
+
+    read_parameters = DataReader.read_parameters
+
+
+class CSVParameterReader(ParameterReader):
+    """For expected format, see `sodym.df_to_nda.DataFrameToNDADataConverter`
+
+    Args:
+        parameter_files (dict): {parameter_name: file_path, ...}
+        **read_csv_kwargs: Additional keyword arguments passed to pandas.read_csv. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended csv file format is preferred
+    """
+
+    def __init__(
+        self,
+        parameter_files: dict = None,
+        **read_csv_kwargs,
+    ):
+        self.parameter_filenames = parameter_files  # {parameter_name: file_path, ...}
+        self.read_csv_kwargs = read_csv_kwargs
+
+    def read_parameter_values(self, parameter_name: str, dims):
+        if self.parameter_filenames is None:
+            raise ValueError("No parameter files specified.")
+        datasets_path = self.parameter_filenames[parameter_name]
+        data = pd.read_csv(datasets_path, **self.read_csv_kwargs)
+        return Parameter.from_df(dims=dims, name=parameter_name, df=data)
+
+
+class ExcelParameterReader(ParameterReader):
+    """For expected format, see `sodym.df_to_nda.DataFrameToNDADataConverter`
+
+    Args:
+        parameter_files (dict): {parameter_name: file_path, ...}
+        parameter_sheets (dict): {parameter_name: sheet_name, ...}
+        **read_excel_kwargs: Additional keyword arguments passed to pandas.read_excel. Not encouraged to use, since it may not lead to the intended DataFrame format. Sticking to recommended excel file format is preferred
+    """
+
+    def __init__(
+        self,
+        parameter_files: dict = None,
+        parameter_sheets: dict = None,
+        **read_excel_kwargs,
+    ):
+        self.parameter_files = parameter_files  # {parameter_name: file_path, ...}
+        self.parameter_sheets = parameter_sheets  # {parameter_name: sheet_name, ...}
+        self.read_excel_kwargs = read_excel_kwargs
+
+    def read_parameter_values(self, parameter_name: str, dims):
+        if self.parameter_files is None:
+            raise ValueError("No parameter files specified.")
+        datasets_path = self.parameter_files[parameter_name]
+        if self.parameter_sheets is None:
+            sheet_name = None
+        else:
+            sheet_name = self.parameter_sheets[parameter_name]
+        data = pd.read_excel(datasets_path, sheet_name=sheet_name, **self.read_excel_kwargs)
+        return Parameter.from_df(dims=dims, name=parameter_name, df=data)
+
+
+class CompoundDataReader(DataReader):
+    def __init__(
+        self,
+        dimension_reader: DimensionReader,
+        parameter_reader: ParameterReader,
+    ):
+        self.dimension_reader = dimension_reader
+        self.parameter_reader = parameter_reader
+
+    def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+        return self.dimension_reader.read_dimension(dimension_definition)
+
+    def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        return self.parameter_reader.read_parameter_values(parameter_name, dims)

@@ -90,7 +90,6 @@ class MFADefinition(PydanticBaseModel):
     flows: List[FlowDefinition]
     stocks: List[StockDefinition]
     parameters: List[ParameterDefinition]
-    scalar_parameters: Optional[list] = []
 
     @model_validator(mode="after")
     def check_dimension_letters(self):
