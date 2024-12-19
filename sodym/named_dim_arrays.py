@@ -62,6 +62,7 @@ class NamedDimArray(PydanticBaseModel):
     def validate_values(self):
         if self.values is None:
             self.values = np.zeros(self.dims.shape())
+        self.check_value_format()
         return self
 
     def check_value_format(self):
