@@ -1,3 +1,5 @@
+"""Home to some data readers."""
+
 from abc import ABC, abstractmethod
 import pandas as pd
 from typing import List, Dict
@@ -14,20 +16,25 @@ class DataReader:
     """
 
     def read_dimensions(self, dimension_definitions: List[DimensionDefinition]) -> DimensionSet:
+        """Method to read data for multiple dimensions, by looping over `read_dimension`."""
         dimensions = [self.read_dimension(definition) for definition in dimension_definitions]
         return DimensionSet(dim_list=dimensions)
 
     @abstractmethod
     def read_dimension(self, dimension_definition: DimensionDefinition) -> Dimension:
+        """Required method to read data for a single dimension,
+        corresponding to the dimension definition."""
         pass
 
     @abstractmethod
     def read_parameter_values(self, parameter_name: str, dims: DimensionSet) -> Parameter:
+        """Required method to read data for a particular parameter."""
         pass
 
     def read_parameters(
         self, parameter_definitions: List[ParameterDefinition], dims: DimensionSet
     ) -> Dict[str, Parameter]:
+        """Method to read data for a list of parameters, by looping over `read_parameter_values`."""
         parameters = {}
         for parameter_definition in parameter_definitions:
             dim_subset = dims.get_subset(parameter_definition.dim_letters)
@@ -117,7 +124,7 @@ class ParameterReader(ABC):
 
 
 class CSVParameterReader(ParameterReader):
-    """For expected format, see :py:class:`sodym.df_to_nda.DataFrameToNDADataConverter`
+    """For expected format, see `sodym.df_to_nda.DataFrameToNDADataConverter`
 
     Args:
         parameter_files (dict): {parameter_name: file_path, ...}
@@ -141,7 +148,7 @@ class CSVParameterReader(ParameterReader):
 
 
 class ExcelParameterReader(ParameterReader):
-    """For expected format, see :py:class:`sodym.df_to_nda.DataFrameToNDADataConverter`
+    """For expected format, see `sodym.df_to_nda.DataFrameToNDADataConverter`
 
     Args:
         parameter_files (dict): {parameter_name: file_path, ...}

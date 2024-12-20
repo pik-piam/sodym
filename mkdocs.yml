@@ -1,0 +1,25 @@
+site_name: sodym
+
+plugins:
+  - mkdocstrings
+  - mkdocs-jupyter:
+      execute: true
+  - include-markdown
+
+theme:
+  name: readthedocs
+
+nav:
+  - Documentation:
+    - code_documentation/mfa_system.md
+    - code_documentation/mfa_definition.md
+    - code_documentation/data_reader.md
+    - code_documentation/dimensions.md
+    - code_documentation/named_dim_arrays.md
+    - code_documentation/stocks.md
+    - code_documentation/data_writing_and_plotting.md
+  - Examples:
+    - examples/example1.py
+    - examples/example2.py
+    - examples/example3.py
+    - examples/example5.py
