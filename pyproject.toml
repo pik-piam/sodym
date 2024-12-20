@@ -38,6 +38,3 @@ docs = [
     "mkdocstrings-python>=1.12.2",
     "mkdocs-include-markdown-plugin>=7.1.2",
 ]
-
-[tool.jupytext.formats]
-"docs/examples" = "ipynb,py:percent"
