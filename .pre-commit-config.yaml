@@ -6,7 +6,7 @@ repos:
         args: [--line-length=100]
         language_version: python3.12
   - repo: https://github.com/mwouts/jupytext
-    rev: v1.16.5
+    rev: v1.16.6
     hooks:
     - id: jupytext
       args: [--sync]
